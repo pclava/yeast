@@ -36,7 +36,7 @@ enum Interrupt {
     DISPLAY_REFRESH =      0b100,  // IP2
     KEY_DOWN =            0b1000,  // IP3
     KEY_UP =             0b10000,  // IP4
-    TIMER_INTERRUPT =   0b100000,  // IP5 : Issued every half second by the emulator!
+    TIMER_INTERRUPT =   0b100000,  // IP5 : Issued periodically by the emulator!
 };
 
 /* === trap_pure.s === */

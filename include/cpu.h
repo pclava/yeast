@@ -10,6 +10,13 @@
 #include <stdint.h>
 #include "proc.h"
 
+struct cpu {
+    struct context context; // Scheduler context
+    struct proc *proc;      // Currently running proc
+};
+
+extern struct cpu cpu;
+
 /*
  * Switches between contexts. Calling swtch saves $ra.
  * so we always return to the last swtch.

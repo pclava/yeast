@@ -6,6 +6,9 @@
 #   - pclava 13 oct 2026
 # ===
 
+.kdata
+cpu:
+    .space  52
 
 .ktext
 
