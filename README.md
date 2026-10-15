@@ -1,4 +1,4 @@
-# yeast : a MIPS kernel
+# yeast
 **a WIP (work in progress) !!!!!**
 
 yeast is a small kernel built to run on my MIPS emulator. It heavily follows [xv6](https://github.com/mit-pdos/xv6-riscv), but is in no way a "reimplementation" of xv6 or any Unix system. I have taken many creative and lazy liberties.
