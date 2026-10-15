@@ -83,7 +83,7 @@ struct proc {
 #define NPROC 64                        // Number of processes in the process table
 extern struct proc proctable[NPROC];    // Table containing every process
 
-// Proctable initialization
+// Process table initialization
 void procinit(void);
 
 // Called by kernel initialization during boot. Infinite loop:
@@ -110,3 +110,5 @@ uint32_t fork(void);                    // Creates new process, copying parent
 struct proc * getproc(void);            // Returns pointer to currently running process
 void switch_to(struct proc *p);         // Called when a process gets scheduled. Sets to running and switches contexts
 void yield(void);                       // Called during timer interrupt. Pauses process and switches to scheduler thread
+
+void procdump(void);                    // Prints the state of every slot in the proctable

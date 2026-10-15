@@ -46,22 +46,21 @@ struct proc * getproc(void) {
 
 void procinit(void) {
     struct proc *p;
+    unsigned int index = 0;
     for (p = proctable; p < &proctable[NPROC]; p++) {
         p->state = UNUSED;
+        index++;
     }
 }
 
 struct proc * pfind(void) {
-    struct proc *p;
-    unsigned char index = 0;
-    for (p = proctable; p < &proctable[NPROC]; p++) {
+    unsigned int index = 0;
+    for (struct proc *p = proctable; p < &proctable[NPROC]; p++) {
         if (p->state == UNUSED) {
-            // TODO: is it getting placed in slot 2 while being given index 1? do ctrl+P in the shell
             p->PID = index;
             return p;
         }
         index++;
-        p++;
     }
     return NULL;
 }
@@ -207,7 +206,6 @@ void exec(int arg) {
     p->pbrk = (void *)HEAP0;
 }
 
-// https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/proc.c#L259
 uint32_t fork(void) {
     struct proc *p = getproc();
 
@@ -217,18 +215,7 @@ uint32_t fork(void) {
     if (np == NULL) return -1; // TODO
 
     // Copy memory from parent to child
-    // TODO
-    // https://github.com/mit-pdos/xv6-riscv/blob/4ded343d5d9d40d4e9dcf4867ca45b14170bf364/kernel/vm.c#L300
     vm_copy(p, np);
-
-    // struct PTE pte;
-    // pte_decode(&pte, pte_lookup(0, 0x00400000));
-    // uint32_t addr = pte.PFN + UMEM_ALIASDIFF;
-    // printk("instruction: %p, pfn: %p\n\r", *(uint32_t *)(addr+0x468), pte.PFN);
-    //
-    // pte_decode(&pte, pte_lookup(1, 0x00400000));
-    // addr = pte.PFN + UMEM_ALIASDIFF;
-    // printk("instruction: %p, pfn: %p\n\r", *(uint32_t *)(addr+0x468), pte.PFN);
 
     // Allocate trapframe and copy (includes PC!)
     np->trapframe = (struct trapframe *)(kalloc() + UMEM_ALIASDIFF);
@@ -247,4 +234,12 @@ uint32_t fork(void) {
 
     // Return pid to parent
     return pid;
+}
+
+void procdump(void) {
+    for (int i = 0; i < NPROC; i++) {
+        struct proc *p = &proctable[i];
+        printk("%d", p->state);
+    }
+    printk("\n\r");
 }

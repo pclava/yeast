@@ -136,9 +136,7 @@ void term_intr(uint8_t c) {
 
     switch (c) {
         case C('P'):    // debug stuff
-            for (struct proc *p = proctable; p < &proctable[NPROC]; p++) {
-                printk("%d", p->state);
-            }
+            procdump();
             break;
         case C('U'):    // Kills the line
             while (cons.e != cons.w &&
