@@ -15,3 +15,4 @@ I am working on documentation in the Wiki section of this repo. Until that is do
 - write my own physical memory manager
 - concurrency/locking
 - copy-on-write
+- finish docs :(
