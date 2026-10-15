@@ -11,7 +11,8 @@ I am working on documentation in the Wiki section of this repo. Until that is do
 
 ## TODO
 - file system
-- different scheduling algorithm
+- process exiting and other essential syscalls. most if not all of these require a working file system 
+- different scheduling algorithm(s)
 - write my own physical memory manager
 - concurrency/locking
 - copy-on-write
