@@ -104,7 +104,7 @@ void switch_to(struct proc *p) {
     p->state = RUNNING;
 
     // Switch
-    swtch(&cpu.context, &p->context);
+    sched(p);
 
     // When process switches back to kernel (say, on yield() or sleep()), we end up here
 }
