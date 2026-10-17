@@ -114,6 +114,10 @@ void forkret(void) {
     struct proc *p = getproc();
     if (p->PID == 0) {
         // First process! Was not created by a fork, and thus has not been exec'd yet
+
+        // Initialize page table
+        pt_init(0);
+
         exec(69420);
     }
 
@@ -166,7 +170,9 @@ static uint8_t *file_buffer = (uint8_t *)FILE_BUFFER;
 
 // Loads a user program
 void exec(int arg) {
+    // TODO: this is mostly wrong
     // Write all of user text and user data
+    struct proc *p = getproc();
 
     *file_reg &= ~(0b111);
     uint8_t *start = (uint8_t *)UTEXT0;
@@ -192,6 +198,7 @@ void exec(int arg) {
             start[offset] = file_buffer[offset];
         }
         start += PAGE_SIZE;
+        count++;
     }
 
     // Place var in stack
@@ -200,10 +207,8 @@ void exec(int arg) {
     pte_decode(&pte, pte_lookup(0, STACK0));
 
     // Setup trapframe
-    struct proc *p = getproc();
     p->trapframe->pc = UTEXT0;
     p->trapframe->sp = STACK0-4; // 1 argument has been placed already
-    p->pbrk = (void *)HEAP0;
 }
 
 uint32_t fork(void) {
@@ -213,6 +218,9 @@ uint32_t fork(void) {
     struct proc *np = pfind();
     unsigned char pid = np->PID;
     if (np == NULL) return -1; // TODO
+
+    // Initialize page table
+    pt_init(pid);
 
     // Copy memory from parent to child
     vm_copy(p, np);
@@ -231,6 +239,9 @@ uint32_t fork(void) {
     np->context.ra = (uint32_t)forkret;
     np->context.sp = KSTACK0-((pid+1)*PAGE_SIZE);
     np->state = RUNNABLE;
+    np->pbrk = (void *)HEAP0;
+    np->parent = p->PID;
+    np->pages = p->pages;
 
     // Return pid to parent
     return pid;
@@ -242,4 +253,77 @@ void procdump(void) {
         printk("%d", p->state);
     }
     printk("\n\r");
+}
+
+// A zombie process only keeps its state (ZOMBIE), parent, and exit code
+void exit(uint32_t code) {
+    struct proc *p = getproc();
+    unsigned char pid = p->PID;
+    if (pid == 0) {
+        panic("tried to exit init");
+    }
+
+    // Give children to init
+    for (struct proc *i = proctable; i < &proctable[NPROC]; i++) {
+        if (i->state != UNUSED && i->parent == pid) {
+            i->parent = 0;
+            wakeup(&proctable[0]); // wakeup init if needed
+        }
+    }
+
+    // When we have a file system, close all files
+
+    // Destroy process resources (note: xv6 does this when wait() is called but I don't see the point in not doing this now)
+    // Trapframe
+    if (p->trapframe) kfree((void *) p->trapframe - UMEM_ALIASDIFF);
+    p->trapframe = NULL;
+    // Page table and physical memory
+    free_pagetable(p->PID);
+    // Other PCB variables
+    p->chan = NULL;
+    p->pbrk = 0;
+    p->pages = 0;
+
+    // Mark as zombie
+    p->state = ZOMBIE;
+
+    // Save code
+    p->code = code;
+
+    // Wake up parent
+    wakeup(&proctable[p->parent]);
+
+    // Return to scheduler context one last time
+    sched(p);
+}
+
+uint32_t wait(uint32_t *code) {
+
+    struct proc *p = getproc();
+    unsigned char pid = p->PID;
+    while (1) {
+        // Loop through process table
+        int has_children = 0;
+        for (struct proc *i = proctable; i < &proctable[NPROC]; i++) {
+            // Check if child
+            if (i->state != UNUSED && i->parent == pid) {
+                has_children = 1;
+
+                if (i->state == ZOMBIE) {
+                    // Zombie child, collect exit code, destroy child, and return PID
+                    if (code != NULL) *code = i->code;
+                    i->parent = 0;
+                    i->state = UNUSED;
+                    return i->PID;
+                }
+
+                // Child is still running, don't do anything
+            }
+        }
+
+        if (!has_children) return -1;
+
+        // Sleep until a child wakes us up with wakeup() (see exit())
+        sleep(&proctable[pid]);
+    }
 }

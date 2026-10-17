@@ -43,9 +43,14 @@ struct PTE {
     bool valid;
 };
 
+#define PTE_V 0b10
+#define PTE_D 0b100
+#define FLAGS_WIDTH 6
+#define PAGE_COUNT 0x80000
+
 // One process's page table
 struct page_table {
-    uint32_t pages[0x80000]; // There are 2^19 (0x80000) virtual pages
+    uint32_t pages[PAGE_COUNT]; // There are 2^19 (0x80000) virtual pages
 };
 
 // List of all page tables
@@ -62,6 +67,9 @@ struct TLBEntry {
     struct PTE page0;   // Mapping of lower (even) page
     struct PTE page1;   // Mapping of upper (odd) page
 };
+
+// Initializes the page table for the process (sets everything to zero)
+void pt_init(unsigned char pid);
 
 // Converts PTE encoding into readable struct
 void pte_decode(struct PTE *dst, uint32_t pte);
@@ -83,6 +91,10 @@ void alloc_page(struct PTE *pte, unsigned char asid, uint32_t vpn);
 // TODO: check for failure
 // TODO: implement copy-on-write
 void vm_copy(struct proc *old, struct proc *new);
+
+// Removes all mappings in the process's page table
+// and frees physical memory
+void free_pagetable(unsigned char proc);
 
 /* === TLB === */
 

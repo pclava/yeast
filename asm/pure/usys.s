@@ -49,3 +49,17 @@ termctl:
     li      $v0, _SYSTERMCTL
     syscall
     jr      $ra
+
+# void exit(unsigned int code)
+    .globl  exit
+exit:
+    li      $v0, _SYSEXIT
+    syscall
+    jr      $ra
+
+# unsigned int wait(unsigned int *code)
+    .globl  wait
+wait:
+    li      $v0, _SYSWAIT
+    syscall
+    jr      $ra

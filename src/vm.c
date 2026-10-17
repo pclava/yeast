@@ -13,12 +13,19 @@ static inline uint32_t find_index(const uint32_t vpn) {
     return ((((vpn >> 12) / 2) + (3 * get_asid())) * 2654435769u) % TLB_SIZE;
 }
 
+void pt_init(unsigned char asid) {
+    struct page_table *pt = &page_tables[asid];
+    for (uint32_t *i = pt->pages; i < &pt->pages[PAGE_COUNT]; i++) {
+        *i = 0;
+    }
+}
+
 struct page_table *page_tables = (struct page_table *)PAGETABLE0;
 
 void pte_decode(struct PTE *dst, const uint32_t pte) {
-    dst->PFN = (pte >> 6) << PAGE_OFFSET;
-    dst->dirty = (pte & 0b100) != 0;
-    dst->valid = (pte & 0b10) != 0;
+    dst->PFN = (pte >> FLAGS_WIDTH) << PAGE_OFFSET;
+    dst->dirty = (pte & PTE_D) != 0;
+    dst->valid = (pte & PTE_V) != 0;
 }
 
 uint32_t pte_encode(const struct PTE *pte) {
@@ -145,6 +152,29 @@ void vm_copy(struct proc *old, struct proc *new) {
     if (to_copy != 0) {
         panic("vm_copy");
     }
+
+}
+
+void free_pagetable(unsigned char proc) {
+    struct page_table *pt = &page_tables[proc];
+
+    // Loop through entry in the page table
+    for (uint32_t va = UMEM_START; va < UMEM_LIMIT; va += PAGE_SIZE ) {
+        uint32_t *pte = &pt->pages[va >> PAGE_OFFSET];
+
+        if (*pte == 0) continue;
+
+        if ((*pte & PTE_V) == 0) continue;
+
+        // Page is valid, free it
+        struct PTE entry;
+        pte_decode(&entry, *pte);
+        kfree((void *)entry.PFN);
+
+        // Clear entry
+        *pte = 0;
+    }
+
 
 }
 

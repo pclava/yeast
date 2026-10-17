@@ -13,6 +13,8 @@ int write(int fd, const void *buffer, int n);
 int read(int fd, void *buffer, int n);
 char *sbrk(int n);
 void termctl(enum termop op);
+void exit(unsigned int code);
+unsigned int wait(unsigned int *code);
 
 // === ULIB (ulib.c) ===
 char *strcpy(char *, const char *);

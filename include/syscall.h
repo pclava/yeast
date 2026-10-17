@@ -17,13 +17,15 @@
 #define SYS_printstr    4
 #define SYS_readstr     8
 #define SYS_sbrk        9
+#define SYS_exit        10
 #define SYS_printchr    11
 #define SYS_readfile    14
 #define SYS_writefile   15
 #define SYS_termctl     28
 #define SYS_exec        29
 #define SYS_fork        30
-#define SYSDOMAIN       30 // largest syscall and number of syscalls
+#define SYS_wait        31
+#define SYSDOMAIN       31 // largest syscall and number of syscalls
 
 // Execute the syscall based on the contents of the trapframe's $v0 and argument registers
 // Called by usertrap() in trap.c

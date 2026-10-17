@@ -27,7 +27,7 @@
 /* === Kernel Data @ 0x90000000 === */
 #define EXC_VEC         0x90000000
 #define TRAPFRAME       0x90000004
-#define PAGETABLE0      0x91000000  // A process's page table starts at PAGETABLE0 + PID*PT+SIZE
+#define PAGETABLE0      0x91000000  // A process's page table starts at PAGETABLE0 + PID*PT_SIZE
 #define PT_SIZE         0x00200000
 
 /* === MMIO @ 0xFFFF0000 === */

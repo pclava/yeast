@@ -54,7 +54,7 @@ struct __attribute__((aligned(4))) {
 void
 kinit()
 {
-    freerange((void *)UMEM_ALIAS, (void *)UMEM_ALIASLIMIT);
+    freerange((void *)UMEM_START, (void *)UMEM_LIMIT);
 }
 
 // Free the page of physical memory pointed at by pa,
@@ -66,12 +66,13 @@ kfree(void *pa)
 {
     struct run *r;
 
-    if (((uint32_t)pa % PAGE_SIZE) != 0 || (uint32_t)pa < UMEM_ALIAS || (uint32_t)pa > UMEM_ALIASLIMIT)
+    if (((uint32_t)pa % PAGE_SIZE) != 0 || (uint32_t)pa < UMEM_START || (uint32_t)pa > UMEM_LIMIT)
         panic("kfree");
 
     // Fill with junk to catch dangling refs. This is absurdly slow, so I'm not sure if it's necessary
     // memset(pa, 1, PAGE_SIZE);
 
+    pa += UMEM_ALIASDIFF;
     r = (struct run *)pa;
 
     r->next = kmem.freelist;

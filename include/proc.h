@@ -66,18 +66,20 @@ enum procstate {
     SLEEPING,
     RUNNABLE,
     UNUSED,
+    ZOMBIE,
 };
 
 // Process information
 struct proc {
     unsigned char PID;              // Process number and index in proctable
     struct context context;         // Process context
-    struct trapframe *trapframe;    // Pointer to trapframe (somewhere in user memory but not mapped in any page talge)
+    struct trapframe *trapframe;    // Pointer to trapframe (somewhere in ALIASED user memory but not mapped in any page table)
     volatile enum procstate state;  // Current state, volatile important for compiler to know about concurrency
     void *chan;                     // If sleeping, channel the process is sleeping on
     void *pbrk;                     // Program break (virtual address)
     unsigned char parent;           // Parent process ID
     unsigned int pages;             // Pages currently in use
+    uint32_t code;                  // Exit code
 };
 
 #define NPROC 64                        // Number of processes in the process table
@@ -104,7 +106,9 @@ void forkret(void);                     // A process's first scheduling ends up 
 void first_proc(void);                  // Creates the first process
 void sleep(void *chan);                 // Puts a process to sleep on a given channel. Must be awoken with wakeup()
 void wakeup(const void *chan);          // Wakes up any process sleeping on the given channel
-uint32_t fork(void);                    // Creates new process, copying parent
+uint32_t fork(void);                    // Creates new process, copying parent, returns ID of child
+void exit(uint32_t code);               // Closes a process with a code. Stays in proctable until collected with wait()
+uint32_t wait(uint32_t *code);          // Waits until a child of this process calls exit(), and collects its status, returning its PID, or -1 if no children
 
 // Called repeatedly:
 struct proc * getproc(void);            // Returns pointer to currently running process

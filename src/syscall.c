@@ -96,18 +96,26 @@ static uint32_t sys_termctl(void) {
 }
 
 static uint32_t sys_exec(void) {
+    // TODO: this is mostly wrong
+
     // Replace contents of current process with a new one
-    uint32_t code = 0x08100000; // infinite loop
+    uint32_t code[] = {
+        0x2402000a, // li $v0, 10
+        0x24040045, // li $a0, 69
+        0x0000000c, // syscall
+    };
 
     uint32_t *start = (uint32_t *)UTEXT0;
     *(uint32_t *)STACK0 = argraw(0);
-    *start = code;
+    for (int i = 0; i < sizeof(code)/sizeof(uint32_t); i++) {
+        *start = code[i];
+        start++;
+    }
 
     // Setup trapframe
     struct proc *p = getproc();
     p->trapframe->pc = UTEXT0;
     p->trapframe->sp = STACK0-4; // 1 argument has been placed already
-    p->pbrk = (void *)HEAP0;
 
     return 0;
 }
@@ -116,17 +124,30 @@ static uint32_t sys_fork(void) {
     return fork();
 }
 
+static uint32_t sys_exit(void) {
+    uint32_t code = (uint32_t) argraw(0);
+    exit(code);
+    return -1; // shouldn't actually return
+}
+
+static uint32_t sys_wait(void) {
+    uint32_t *code = (uint32_t *) argraw(0);
+    return wait(code);
+}
+
 static uint32_t (*syscalls[])(void) = {
     [SYS_printint]      = sys_printint,
     [SYS_printstr]      = sys_printstr,
     [SYS_readstr]       = sys_readstr,
     [SYS_sbrk]          = sys_sbrk,
+    [SYS_exit]          = sys_exit,
     [SYS_printchr]      = sys_printchr,
     [SYS_readfile]      = sys_readfile,
     [SYS_writefile]     = sys_writefile,
     [SYS_termctl]       = sys_termctl,
     [SYS_exec]          = sys_exec,
     [SYS_fork]          = sys_fork,
+    [SYS_wait]          = sys_wait,
 };
 
 void syscall() {
@@ -142,7 +163,7 @@ void syscall() {
             printk("Less than 0\n\r");
         }
         if (num > SYSDOMAIN) {
-            printk("Too big\n\r");
+            printk("Too big (%u)\n\r", num);
         }
         if (!syscalls[num]) {
             printk("Not implemented\n\r");
