@@ -8,12 +8,3 @@ I am building yeast as an accompaniment to my Operating Systems course, and as s
 yeast will _not_ run on the most recent release of MIPSEmulator. Many changes had to be made to support a kernel, and I will publish the modified emulator as soon as I get the file system implemented in yeast. In the meantime, you'll have to trust me that the kernel works. When I release a working emulator, I'll also add the Makefile and shell script I use to build the project.
 
 I am working on documentation in the Wiki section of this repo. Until that is done, the code is heavily commented! Write to me if you would like anything explained.
-
-## TODO
-- file system
-- process exiting and other essential syscalls. most if not all of these require a working file system 
-- different scheduling algorithm(s)
-- write my own physical memory manager
-- concurrency/locking
-- copy-on-write
-- finish docs :(
