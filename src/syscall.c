@@ -48,12 +48,13 @@ static uint32_t sys_sbrk(void) {
 
     struct proc *p = getproc();
 
-    if (n % 4 != 0) n += 4 - (n % 4); // Round up to nearest multiple
+    if (n % 4 != 0) n += 4 - (n % 4); // Round up to nearest multiple of 4
     if ((size_t) p->pbrk + n >= HEAPLIM) {
         // Can't allocate
         panic("out of heap space");
     }
 
+    // Note: lazy allocation
     p->pbrk = p->pbrk + n;
     return (uint32_t) p->pbrk;
 }

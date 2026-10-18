@@ -14,11 +14,11 @@ putc(int fd, char c)
 }
 
 static void
-printint(int fd, long long xx, int base, int sgn)
+printint(int fd, int xx, int base, int sgn)
 {
   char buf[20];
   int i, neg;
-  unsigned long long x;
+  unsigned int x;
 
   neg = 0;
   if (sgn && xx < 0) {

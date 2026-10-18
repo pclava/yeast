@@ -10,11 +10,11 @@
 static char digits[] = "0123456789abcdef";
 
 static void
-printint(long long xx, int base, int sign)
+printint(int xx, int base, int sign)
 {
   char buf[20];
   int i;
-  unsigned long long x;
+  unsigned int x;
 
   if (sign && ((sign = (xx < 0))))
     x = -xx;
