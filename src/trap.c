@@ -85,6 +85,9 @@ void usertrap(void) {
     else if (cause == INTERRUPT) {
         // Interrupt
         kind = devintr();
+        if (kind == 0) {
+            panic("devintr");
+        }
     }
     else {
         switch (cause) {
@@ -149,10 +152,11 @@ int devintr(void) {
             return 2; // usertrap will handle
         case KEY_DOWN:
             intr_keydown();
+            return 1;
             break;
         case KEY_UP:
             intr_keyup();
-            break;
+            return 1;
         case NO_INTERRUPT:
         case DISPLAY_REFRESH:
         default:
