@@ -7,16 +7,18 @@ void colors();
 void yeast();
 
 int main() {
+
+    intro();
+
     int pid = fork();
     if (pid == 0) {
         exec(12345);
-    } else {
+    }
+    else {
         unsigned int status;
         unsigned char child = wait(&status);
         printf("> child %u exited with code %u\n\r", child, status);
     }
-
-    intro();
 
     char buf[128];
     while (1) {

@@ -1,4 +1,7 @@
 #include "main.h"
+
+#include <stdint.h>
+
 #include "tty.h"
 #include "printk.h"
 #include "proc.h"
@@ -27,7 +30,7 @@ static void kernel_main(void)
     term_init();
     printk(KERNEL_MSG "Kernel booting\n\r");
     kinit();
-    printk(KERNEL_MSG "Memory initialized\n\r");
+    printk(KERNEL_MSG "Physical memory initialized\n\r");
     procinit();
     printk(KERNEL_MSG "Process table initialized\n\r");
 

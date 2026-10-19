@@ -62,7 +62,7 @@ void alloc_page(struct PTE *pte, const unsigned char asid, const uint32_t vpn) {
     struct proc *p = getproc();
     p->pages++;
 
-    printk(KERNEL_MSG "allocated VPN 0x%x of process %d @ PFN 0x%x\n\r", vpn, asid, pte->PFN);
+    // printk(KERNEL_MSG "allocated VPN 0x%x of process %d @ PFN 0x%x\n\r", vpn, asid, pte->PFN);
 }
 
 // Copies a given number of words between two word-aligned addresses
