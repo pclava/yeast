@@ -12,7 +12,7 @@ int main() {
 
     int pid = fork();
     if (pid == 0) {
-        exec(12345);
+        exit(4312);
     }
     else {
         unsigned int status;
