@@ -67,8 +67,9 @@ void alloc_page(struct PTE *pte, const unsigned char asid, const uint32_t vpn) {
 
 // Copies a given number of words between two word-aligned addresses
 static uint32_t * memcpy_aligned(const uint32_t *src, uint32_t *dst, size_t n) {
+    uint32_t *dest = dst;
     while (n--) {
-        *dst++ = *src++;
+        *dest++ = *src++;
     }
     return dst;
 }
