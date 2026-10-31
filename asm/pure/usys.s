@@ -63,3 +63,9 @@ wait:
     li      $v0, _SYSWAIT
     syscall
     jr      $ra
+
+    .globl  sleep
+sleep:
+    li      $v0, _SYSSLEEP
+    syscall
+    jr      $ra

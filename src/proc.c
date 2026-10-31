@@ -3,6 +3,7 @@
 #include "cpu.h"
 #include "kalloc.h"
 #include "main.h"
+#include "lock.h"
 #include "memlayout.h"
 #include "printk.h"
 #include "vm.h"
@@ -67,13 +68,21 @@ struct proc * pfind(void) {
 
 void scheduler() {
     while (1) {
+
+        // This is here in case the CPU has interrupts disabled when it goes to sleep
+        int_on();
+        int_off();
+
         int found = 0;
         for (struct proc *p = proctable; p < &proctable[NPROC]; p++) {
+            acquire();
             if (p->state == RUNNABLE) {
                 switch_to(p);
                 found = 1;
             }
+            release();
         }
+
         if (!found) {
             asm volatile ("wait");
         }
@@ -83,7 +92,9 @@ void scheduler() {
 void yield(void) {
     struct proc *p = getproc();
     p->state = RUNNABLE;
+    acquire();
     sched(p);
+    release();
 }
 
 void sched(struct proc *p) {
@@ -149,19 +160,34 @@ void first_proc(void) {
     p->state = RUNNABLE;
 }
 
-void sleep(void *chan) {
+void sleep_prepare(void *chan) {
     struct proc *p = getproc();
-    p->state = SLEEPING;
+    acquire();
+    if (chan == NULL) panic("tried to sleep on 0");
     p->chan = chan;
-    sched(p);
+    release();
+}
+
+void sleep() {
+    struct proc *p = getproc();
+    acquire();
+    // sleep_prepare would have set the channel, but a wakeup() may have come in the meantime, setting the channel to 0
+    if (p->chan != NULL) {
+        p->state = SLEEPING;
+        sched(p);
+    }
+    release();
 }
 
 void wakeup(const void *chan) {
     // Loop through process table waking up any sleeping process
     for (struct proc *p = proctable; p < &proctable[NPROC]; p++) {
-        if (p->state == SLEEPING && p->chan == chan) {
-            p->state = RUNNABLE;
+        acquire();
+        if (p->chan == chan) {
+            p->chan = NULL;
+            if (p->state == SLEEPING) p->state = RUNNABLE;
         }
+        release();
     }
 }
 
@@ -267,7 +293,9 @@ void exit(uint32_t code) {
     for (struct proc *i = proctable; i < &proctable[NPROC]; i++) {
         if (i->state != UNUSED && i->parent == pid) {
             i->parent = 0;
+            acquire();
             wakeup(&proctable[0]); // wakeup init if needed
+            release();
         }
     }
 
@@ -291,16 +319,22 @@ void exit(uint32_t code) {
     p->code = code;
 
     // Wake up parent
+    acquire();
     wakeup(&proctable[p->parent]);
+    release();
 
     // Return to scheduler context one last time
+    acquire();
     sched(p);
+    release();
 }
 
 uint32_t wait(uint32_t *code) {
 
     struct proc *p = getproc();
     unsigned char pid = p->PID;
+
+    acquire();
     while (1) {
         // Loop through process table
         int has_children = 0;
@@ -314,6 +348,7 @@ uint32_t wait(uint32_t *code) {
                     if (code != NULL) *code = i->code;
                     i->parent = 0;
                     i->state = UNUSED;
+                    release();
                     return i->PID;
                 }
 
@@ -321,9 +356,15 @@ uint32_t wait(uint32_t *code) {
             }
         }
 
-        if (!has_children) return -1;
+        if (!has_children) {
+            release();
+            return -1;
+        }
 
         // Sleep until a child wakes us up with wakeup() (see exit())
-        sleep(&proctable[pid]);
+        sleep_prepare(&proctable[pid]);
+        release();
+        sleep();
+        acquire();
     }
 }

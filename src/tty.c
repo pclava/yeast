@@ -2,6 +2,7 @@
 #include "tty.h"
 #include "main.h"
 #include "keyboard.h"
+#include "lock.h"
 #include "memlayout.h"
 #include "printk.h"
 #include "proc.h"
@@ -81,10 +82,14 @@ struct {
 int term_read(uint8_t *dst, int32_t n) {
     const uint32_t target = n;
 
+    acquire();
     while (n > 0) {
         // Wait until write pointer has advanced (int handler has written something)
         while (cons.r == cons.w) {
-            sleep(&cons);
+            sleep_prepare(&cons);
+            release();
+            sleep();
+            acquire();
         }
 
         const char c = cons.buf[cons.r++ % INPUT_BUF_SIZE]; // Read char and increment read ptr
@@ -99,6 +104,7 @@ int term_read(uint8_t *dst, int32_t n) {
             break;
         }
     }
+    release();
     return (int32_t) target-n;
 }
 
@@ -169,7 +175,9 @@ void term_intr(uint8_t c) {
                 // If newline or no more buffer space, "write" the entry
                 if (c == '\n' || c == C('D') || cons.e - cons.r == INPUT_BUF_SIZE) {
                     cons.w = cons.e;
+                    acquire();
                     wakeup(&cons);
+                    release();
                 }
             }
             break;

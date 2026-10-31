@@ -10,9 +10,14 @@
 #include <stdint.h>
 #include "proc.h"
 
+// Timer interval in milliseconds
+#define TICK 10
+
 struct cpu {
     struct context context; // Scheduler context
     struct proc *proc;      // Currently running proc
+    unsigned int intr_off;  // Interrupts are disabled if > 0
+    unsigned int ticks;     // Running count of timer ticks
 };
 
 extern struct cpu cpu;

@@ -15,6 +15,7 @@
  */
 
 #pragma once
+#include <stdint.h>
 
 // Trap codes are written into the $cause register with this mapping
 enum ExcCode {

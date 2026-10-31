@@ -12,6 +12,9 @@ int main() {
 
     int pid = fork();
     if (pid == 0) {
+        printf("Sleeping...");
+        sleep(2000);
+        printf(" awake!\n\r");
         exit(4312);
     }
     else {
@@ -54,7 +57,7 @@ int main() {
 }
 
 void yeast() {
-    printf(ANSI_COLOR_YELLOW "yeast" ANSI_COLOR_RESET " kernel 0.1.0 by paul clavaud\n\r");
+    printf(ANSI_COLOR_YELLOW KERNEL_NAME ANSI_COLOR_RESET " kernel " KERNEL_VERS " by paul clavaud\n\r");
 }
 
 void colors() {

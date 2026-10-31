@@ -25,7 +25,8 @@
 #define SYS_exec        29
 #define SYS_fork        30
 #define SYS_wait        31
-#define SYSDOMAIN       31 // largest syscall and number of syscalls
+#define SYS_sleep       32
+#define SYSDOMAIN       32 // largest syscall and number of syscalls
 
 // Execute the syscall based on the contents of the trapframe's $v0 and argument registers
 // Called by usertrap() in trap.c

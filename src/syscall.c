@@ -1,5 +1,6 @@
 #include "syscall.h"
 #include "cpu.h"
+#include "lock.h"
 #include "main.h"
 #include "printk.h"
 #include "memlayout.h"
@@ -128,12 +129,28 @@ static uint32_t sys_fork(void) {
 static uint32_t sys_exit(void) {
     uint32_t code = (uint32_t) argraw(0);
     exit(code);
-    return -1; // shouldn't actually return
+    return -1; // shouldn't actually return but like what if?
 }
 
 static uint32_t sys_wait(void) {
     uint32_t *code = (uint32_t *) argraw(0);
     return wait(code);
+}
+
+static uint32_t sys_sleep(void) {
+    unsigned int milliseconds = (unsigned int) argraw(0);
+    unsigned int n = milliseconds / TICK;
+
+    unsigned int ticks0 = cpu.ticks;
+    acquire();
+    while (cpu.ticks-ticks0 < n) {
+        sleep_prepare(&cpu.ticks);
+        release();
+        sleep();
+        acquire();
+    }
+    release();
+    return 0;
 }
 
 static uint32_t (*syscalls[])(void) = {
@@ -149,6 +166,7 @@ static uint32_t (*syscalls[])(void) = {
     [SYS_exec]          = sys_exec,
     [SYS_fork]          = sys_fork,
     [SYS_wait]          = sys_wait,
+    [SYS_sleep]         = sys_sleep,
 };
 
 void syscall() {
