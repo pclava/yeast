@@ -177,17 +177,7 @@ _kerexc:
     lw      $k1, 120($sp)
     addiu   $sp, $sp, 124
 
-    # Enable interrupts
-    # Note: kerneltrap will only return safely if
-    # the trap *was* an interrupt,
-    # meaning interrupts had to have been enabled
-    # and it is safe to reenable
-
-    # TODO: this is no longer true because of TLB exceptions
-    ei      $0
-
-    # Note: emulator runs interrupts *after* instruction execution
-    # and *after* PC has been incremented, so no need to touch EPC
+    # kerneltrap() enables interrupts itself
 
     # Return to where kernel was interrupted
     eret

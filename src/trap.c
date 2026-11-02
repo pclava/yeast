@@ -6,6 +6,7 @@
 #include "printk.h"
 #include "syscall.h"
 #include "keyboard.h"
+#include "lock.h"
 #include "vga.h"
 #include "vm.h"
 
@@ -59,6 +60,7 @@ void intr_keyup(void) {
 void prepare_return(void) {
     struct proc *p = getproc();
     p->trapframe->kernel_sp = KSTACK0-((p->PID+1)*PAGE_SIZE);
+    cpu.intr_off--;
     prepare_return_pure();
 }
 
@@ -66,6 +68,7 @@ void usertrap(void) {
     // This code occurs in the process's kernel context
     // The process's kernel context ONLY exists inside this function
     // The kernel stack will be emptied after every return to user space
+    push_off();
 
     // Get cause
     const enum ExcCode cause = get_cause();
@@ -115,10 +118,11 @@ void usertrap(void) {
 
     prepare_return();
     userret();
-
 }
 
 void kerneltrap(void) {
+    push_off();
+
     // Check cause
     const enum ExcCode cause = get_cause();
 
@@ -142,6 +146,15 @@ void kerneltrap(void) {
                 panic("Non-interrupt trap occurred in kernel space");
         }
     }
+
+    pop_off();
+}
+
+void timerintr(void) {
+    acquire();
+    cpu.ticks++;
+    wakeup(&cpu.ticks);
+    release();
 }
 
 int devintr(void) {
@@ -149,6 +162,7 @@ int devintr(void) {
 
     switch (cause) {
         case TIMER_INTERRUPT:
+            timerintr();
             return 2; // usertrap will handle
         case KEY_DOWN:
             intr_keydown();

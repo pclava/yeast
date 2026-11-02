@@ -7,9 +7,10 @@
 #include "proc.h"
 #include "cpu.h"
 #include "kalloc.h"
+#include "lock.h"
 #include "vga.h"
 
-struct cpu cpu = {};
+struct cpu cpu = {0};
 
 void kernel_terminate(int32_t code) {
     asm volatile (
@@ -26,6 +27,8 @@ void kernel_terminate(int32_t code) {
 
 static void kernel_main(void)
 {
+    push_off();
+
     // SYSTEM INITIALIZATION
     term_init();
     printk(KERNEL_MSG "Kernel booting\n\r");
@@ -34,7 +37,7 @@ static void kernel_main(void)
     procinit();
     printk(KERNEL_MSG "Process table initialized\n\r");
 
-    int_on(); // Enable interrupts, but they won't come through until userret because EXL is on
+    pop_off(); // Enable interrupts, but they won't come through until userret because EXL is on
 
     // Initialize first process
     first_proc();

@@ -47,9 +47,10 @@ struct run {
     struct run *next;
 };
 
+// i gotta implement bss for kernel code
 static struct {
     struct run *freelist;
-} kmem ;
+} kmem __attribute__((section(".kdata")));
 
 void kinit() {
     freerange((void *)UMEM_START, (void *)UMEM_LIMIT);

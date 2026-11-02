@@ -15,6 +15,7 @@ char *sbrk(int n);
 void termctl(enum termop op);
 void exit(unsigned int code);
 unsigned int wait(unsigned int *code);
+void sleep(unsigned int ms);
 
 // === ULIB (ulib.c) ===
 char *strcpy(char *, const char *);
@@ -35,3 +36,7 @@ void printf(const char *fmt, ...);
 // === UMALLOC (umalloc.c) ===
 void *malloc(unsigned int);
 void free(void *);
+
+// === kernel stuff ===
+#define KERNEL_NAME "yeast"
+#define KERNEL_VERS "0.2.0"
