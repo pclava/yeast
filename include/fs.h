@@ -1,5 +1,4 @@
 #pragma once
-#include <assert.h>
 #include <stdint.h>
 
 #define BLOCKSIZE 512

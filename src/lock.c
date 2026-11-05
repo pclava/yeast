@@ -1,5 +1,6 @@
 #include "lock.h"
 #include "cpu.h"
+#include "printk.h"
 
 void push_off(void) {
     // Was 0
@@ -34,12 +35,21 @@ void acquire_sleep(struct sleeplock *s) {
         acquire();
     }
     s->locked = 1;
+    s->pid = cpu.proc->PID;
     release();
 }
 
 void release_sleep(struct sleeplock *s) {
     acquire();
     s->locked = 0;
+    s->pid = 0;
     wakeup(s);
     release();
+}
+
+int holding_sleep(struct sleeplock *s) {
+    acquire();
+    int ret = s->locked && (s->pid == cpu.proc->PID);
+    release();
+    return ret;
 }

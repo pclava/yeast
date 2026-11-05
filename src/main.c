@@ -1,7 +1,5 @@
-#include "main.h"
-
 #include <stdint.h>
-
+#include "main.h"
 #include "tty.h"
 #include "printk.h"
 #include "proc.h"
@@ -9,6 +7,8 @@
 #include "kalloc.h"
 #include "lock.h"
 #include "vga.h"
+
+#include "buffer.h"
 
 struct cpu cpu = {0};
 
@@ -36,11 +36,16 @@ static void kernel_main(void)
     printk(KERNEL_MSG "Physical memory initialized\n\r");
     procinit();
     printk(KERNEL_MSG "Process table initialized\n\r");
+    bcache_init();
+    printk(KERNEL_MSG "Block cache initialized\n\r");
 
     pop_off(); // Enable interrupts, but they won't come through until userret because EXL is on
 
+    // cpu.proc = proctable;
+    // disk_test();
+
     // Initialize first process
-    first_proc();
+    // first_proc();
 
     printk("(" ANSI_COLOR_YELLOW "yeast" ANSI_COLOR_RESET ") Entering normal operation\n\r");
 

@@ -33,6 +33,10 @@
 /* === MMIO @ 0xFFFF0000 === */
 #define VGA_MEMORY      0xFFFF0000
 #define KEY_REG         0xFFFFFA00  // Single byte! Scancodes get sent here on key interrupt
+#define DSK_SECT        0xFFFFFA04
+#define DSK_ADDR        0xFFFFFA08
+#define DSK_CTRL        0xFFFFFA0c
+#define DSK_STAT        0xFFFFFA0d
 
 // temp
 #define FILE_REG        0xFFFFFA04  // Word
