@@ -210,7 +210,7 @@ void add_direntry(uint i_parent, char *name, uint i_child) {
     write_to_inode(i_parent, &direntry, sizeof(direntry));
 }
 
-void fs_init(void ) {
+void dsk_init(void ) {
     assert((BLOCKSIZE % sizeof(struct dinode)) == 0);
     char blockbuf[BLOCKSIZE];
 
@@ -305,7 +305,7 @@ int main(int argc, char *argv[]) {
 
     diskname = argv[1];
 
-    fs_init();
+    dsk_init();
 
     // 5. Add files to root
     for (int i = 2; i < argc; i++) {

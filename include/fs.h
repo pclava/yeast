@@ -1,3 +1,10 @@
+/*
+ * Core file system code
+ *
+ * Implemented in fs.c
+ * - pclava 5 nov 2026
+ */
+
 #pragma once
 #include <stdint.h>
 
@@ -44,3 +51,5 @@ struct direntry {
     uint32_t inode;
     char name[DIRSIZE+1];
 };
+
+void fs_init(void);
