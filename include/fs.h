@@ -23,6 +23,8 @@ struct superblock {
     uint32_t bitmapstart;     // First data block
 };
 
+extern struct superblock sb;
+
 #define NDIRECT 12  // Number of direct data blocks kept in inode
 #define NINDIRECT (BLOCKSIZE / sizeof(uint32_t)) // Number of blocks blocks kept in the inode's indirect block
 #define MAX_FILE (NDIRECT+NINDIRECT)
@@ -43,6 +45,8 @@ struct dinode {
 #define INODES_PER_BLOCK (BLOCKSIZE / sizeof(struct dinode))
 #define BITS_PER_BLOCK (BLOCKSIZE * 8)
 #define IBLOCK(i, superblock) (superblock.inodestart + ((i) / INODES_PER_BLOCK))
+#define NINODES 200 // inodes on disk
+#define NINODE 50 // inodes in memory
 
 #define DIRSIZE 15
 
@@ -53,3 +57,5 @@ struct direntry {
 };
 
 void fs_init(void);
+uint32_t balloc(void);
+void bfree(uint32_t bno);

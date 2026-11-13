@@ -8,7 +8,6 @@
 typedef unsigned int uint;
 
 #define FSSIZE 4096 // file system size in blocks
-#define NINODES 200
 #define INODESECT i
 
 #define min(a, b) ((a) < (b) ? (a) : (b))

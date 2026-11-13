@@ -4,6 +4,7 @@
 
 #include "log.h"
 #include "buffer.h"
+#include "inode.h"
 #include "printk.h"
 
 struct superblock sb;
@@ -48,7 +49,7 @@ static void block_zero(uint32_t bno) {
     brelse(bp);
 }
 
-static uint32_t balloc(void) {
+uint32_t balloc(void) {
     uint32_t ceil_bmapsz = (sb.size + BITS_PER_BLOCK - 1) / BITS_PER_BLOCK;
     for (int bno = 0; bno < ceil_bmapsz; bno++) {
         // Get bitmap block
@@ -65,6 +66,7 @@ static uint32_t balloc(void) {
                 log_write(bp); // write bitmap
                 brelse(bp); // release block
                 block_zero(bit+bno); // clear data
+                return bit+bno;
             }
         }
 
@@ -74,7 +76,7 @@ static uint32_t balloc(void) {
     panic("balloc: no blocks!");
 }
 
-static void bfree(uint32_t bno) {
+void bfree(uint32_t bno) {
 
     // Get bitmap block
     struct bbuf *bp = bread(bno / BITS_PER_BLOCK + sb.bitmapstart);
@@ -103,4 +105,7 @@ void fs_init(void) {
 
     // Init log
     log_init(&sb);
+
+    // Init inodes
+    inodes_init();
 }
