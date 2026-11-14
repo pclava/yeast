@@ -7,7 +7,7 @@
 #include "log.h"
 #include "printk.h"
 
-struct inode itable[NINODES];
+struct inode itable[NINODE];
 
 static uint32_t *memset_aligned(uint32_t *dst, uint32_t c, size_t n) {
     uint32_t *dest = dst;
@@ -26,28 +26,34 @@ static uint32_t *memcpy_aligned(const uint32_t *src, uint32_t *dst, size_t n) {
 }
 
 static void *memcpy(const void *src, void *dst, size_t n) {
-    size_t w = n/4;
-    size_t left = n%4;
-    memcpy_aligned(src, dst, w);
-    const unsigned char *s = (const unsigned char *)src+(w * sizeof(uint32_t));
-    unsigned char *d = dst+(w * sizeof(uint32_t));
-    while (left--) {
+    const unsigned char *s = src;
+    unsigned char *d = dst;
+
+    // copy until both addresses are word-aligned
+    while (((int) s % 4 != 0) || ((int) d % 4 != 0) || (n % 4 != 0)) {
         *d++ = *s++;
+        n--;
+        if (n == 0) break;
     }
+
+    // Only once once all word-aligned
+    if (n) {
+        // copy rest
+        size_t w = n/4;
+        memcpy_aligned((const uint32_t *)s, (uint32_t *)d, w);
+    }
+
     return dst;
 }
-
-static struct inode *iget(uint32_t inum);
 
 static uint32_t bmap(uint32_t data_block, struct inode *ip);
 
 void inodes_init(void) {
-    for (struct inode *i = itable; i < &itable[NINODES]; i++) {
+    for (struct inode *i = itable; i < &itable[NINODE]; i++) {
         memset_aligned((uint32_t *)i, 0, sizeof(struct inode)/sizeof(uint32_t));
     }
 }
 
-// Allocate a new inode. This is the main interface for getting inodes
 struct inode *ialloc(uint32_t type) {
     if (type == 0) return NULL;
 
@@ -59,7 +65,7 @@ struct inode *ialloc(uint32_t type) {
 
         // For each inode inside block
         for (int j = 0; j < INODES_PER_BLOCK; j++) {
-            uint32_t inum = i + j*INODES_PER_BLOCK;
+            uint32_t inum = i*INODES_PER_BLOCK + j;
             struct dinode *d = dinodes + j;
             if (d->type == 0) {
                 // Inode is unused
@@ -89,13 +95,11 @@ void ilock(struct inode *inode) {
 
     // Read from disk
     if (inode->valid == 0) {
-        // get block
-
         // read block
-        uint32_t bno = sb.inodestart + inode->inum / INODES_PER_BLOCK;
+        uint32_t bno = IBLOCK(inode->inum, sb);
         struct bbuf *bp = bread(bno);
-        struct dinode *dinode = (struct dinode *)bp->data;
-        struct dinode *dp = &dinode[inode->inum % INODES_PER_BLOCK];
+        struct dinode *dinodes = (struct dinode *)bp->data;
+        struct dinode *dp = &dinodes[inode->inum % INODES_PER_BLOCK];
         // copy dp into inode.d
         memcpy(dp, &inode->d, sizeof(struct dinode));
         brelse(bp);
@@ -192,6 +196,13 @@ void ifree(uint32_t ino) {
     brelse(bp);
 }
 
+struct inode *idup(struct inode *ip) {
+    acquire();
+    ip->references++;
+    release();
+    return ip;
+}
+
 uint32_t min(uint32_t a, uint32_t b) {
     if (a <= b) return a;
     return b;
@@ -233,7 +244,7 @@ uint32_t readi(struct inode *ip, void *addr, const size_t offset, size_t n) {
 }
 
 uint32_t writei(struct inode *ip, void *addr, size_t offset, size_t n) {
-    if (offset >= ip->d.size || offset + n > (MAX_FILE * BLOCKSIZE)) {
+    if (offset > ip->d.size || offset + n > (MAX_FILE * BLOCKSIZE)) {
         return -1;
     }
 
@@ -258,21 +269,21 @@ uint32_t writei(struct inode *ip, void *addr, size_t offset, size_t n) {
         brelse(bp);
     }
 
-    if (off > ip->d.size) ip->d.size = offset;
+    if (off > ip->d.size) ip->d.size = off;
     iupdate(ip);
 
     return count;
 }
 
 // Gets the inode for this number, allocating one if needed
-// Does not write useful information. ilock() must be called
+// Does not write useful information. ilock() must be called after
 struct inode *iget(uint32_t inum) {
     struct inode *empty = NULL;
 
     acquire();
 
     // Look through table
-    for (struct inode *i = itable; i < &itable[NINODES]; i++) {
+    for (struct inode *i = itable; i < &itable[NINODE]; i++) {
         if (i->references > 0 && i->inum == inum) {
             i->references++;
             release();

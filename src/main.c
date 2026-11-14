@@ -8,7 +8,7 @@
 #include "lock.h"
 #include "vga.h"
 
-#include "buffer.h"
+#include "inode.h"
 
 struct cpu cpu = {0};
 
@@ -40,13 +40,10 @@ static void kernel_main(void)
     pop_off(); // Enable interrupts, but they won't come through until userret because EXL is on
 
     // === BAD ===
-
-    cpu.proc = proctable;
-    // disk_test();
-
     // Initialize first process
     // first_proc();
 
+    cpu.proc = proctable;
     // should be done in first proc initialization
     fs_init();
     printk(KERNEL_MSG "File system initialized\n\r");

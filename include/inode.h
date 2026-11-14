@@ -9,30 +9,28 @@
 #include <stddef.h>
 
 #include "fs.h"
-#include "lock.h"
-
-struct inode {
-    uint32_t inum;
-    int32_t references;
-    int32_t valid; // has the inode been read from disk?
-    struct sleeplock lock;
-    struct dinode d;
-};
 
 void inodes_init(void);
 
-// Allocate a new inode. This is the main interface for getting inodes
+// Create a new inode. This is the main interface for creating inodes
 struct inode *ialloc(uint32_t type);
 
 // Locks the inode for use. Reads it from disk if necesary
+// Must be paired with iunlock
 void ilock(struct inode *inode);
+
+// Unlock inode
+// Must be paired with ilock
+void iunlock(struct inode *inode);
+
+// Gets an inode in-memory data structure without locking or reading from disk
+// Must be paired with iput
+struct inode *iget(uint32_t inum);
 
 // Drop the reference. If this is the last reference, drop from table
 // If no links, delete from disk
+// Must be paired with iget
 void iput(struct inode *inode);
-
-// Unlock inode
-void iunlock(struct inode *inode);
 
 // Delete all data from inode
 void itrunc(struct inode *inode);
@@ -42,6 +40,9 @@ void iupdate(struct inode *inode);
 
 // Free inode on disk
 void ifree(uint32_t ino);
+
+// Adds a reference to an inode
+struct inode *idup(struct inode *ip);
 
 // Reads data from file through inode. Main wrapper for reading
 uint32_t readi(struct inode *ip, void *addr, size_t offset, size_t n);

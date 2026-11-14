@@ -18,7 +18,7 @@ int nlog = 0;
 int nmeta;
 int ndata;
 
-uint freeinode = 0; // next free inode
+uint freeinode = ROOTINUM; // next free inode
 uint freeblock = 0; // next free block
 char zeroblock[BLOCKSIZE] = {0};
 struct superblock sb;
@@ -89,6 +89,7 @@ void winode(uint i, struct dinode *dinode) {
 
     // Write dinode
     dbuf[offset] = *dinode;
+    printf("writing size: %u\n", dbuf[offset].size);
 
     // Write sector again
     wsect(sector, buf);
@@ -117,6 +118,7 @@ void write_to_inode(uint i, void *data, size_t bytes) {
     rinode(i, &dinode);
 
     uint boffset = dinode.size;
+    printf("starting boffset: %u\n", boffset);
 
     // Write data
     while (bytes > 0) {
@@ -168,6 +170,7 @@ void write_to_inode(uint i, void *data, size_t bytes) {
 
     // Update inode
     dinode.size = boffset;
+    printf("dinode size: %u\n", dinode.size);
     winode(i, &dinode);
 }
 
@@ -209,7 +212,7 @@ void add_direntry(uint i_parent, char *name, uint i_child) {
     write_to_inode(i_parent, &direntry, sizeof(direntry));
 }
 
-void dsk_init(void ) {
+void dsk_init(void) {
     assert((BLOCKSIZE % sizeof(struct dinode)) == 0);
     char blockbuf[BLOCKSIZE];
 
@@ -232,10 +235,11 @@ void dsk_init(void ) {
     memcpy(blockbuf, &sb, sizeof(struct superblock));
     wsect(1, blockbuf);
     printf("Wrote superblock\n");
+    printf("sb.inodestart: %u\n", sb.inodestart);
 
     // 4. Create root directory inode
     i_rootdir = allocate_inode(F_DIRECTORY);
-    assert(i_rootdir == 0);
+    assert(i_rootdir == ROOTINUM);
     printf("Created rootdir\n");
 
     // Add . and ..
@@ -245,6 +249,7 @@ void dsk_init(void ) {
 }
 
 void add_file(char *filename) {
+    printf("\nAdding file %s\n", filename);
     FILE *f = fopen(filename, "rb");
     assert(f != NULL);
 
@@ -265,19 +270,28 @@ void add_file(char *filename) {
 
     // Create inode
     uint inode = allocate_inode(F_FILE);
+    printf("Placing %s at inode %u\n", name, inode);
 
     // Add to root directory
     // TODO: generalize
+    printf("Writing direntry\n");
     add_direntry(i_rootdir, name, inode);
 
     // Write file one sector at a time to the inode
     char buf[BLOCKSIZE];
     uint n;
+    printf("writing file\n");
     while ((n = fread(buf, 1, BLOCKSIZE, f)) > 0) {
         write_to_inode(inode, buf, n);
     }
+    printf("finished writing\n");
+
+    struct dinode test;
+    rinode(inode, &test);
+    printf("final size: %d\n", test.size);
 
     fclose(f);
+    printf("\n");
 }
 
 // Writes the bitmap after disk init

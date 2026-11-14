@@ -8,6 +8,9 @@
 #pragma once
 #include <stdint.h>
 
+#include "lock.h"
+
+
 #define BLOCKSIZE 512
 
 #define FSMAGIC 0x594D4653
@@ -30,8 +33,8 @@ extern struct superblock sb;
 #define MAX_FILE (NDIRECT+NINDIRECT)
 
 enum file_type {
-    F_DIRECTORY = 0,
-    F_FILE = 1,
+    F_DIRECTORY = 1,
+    F_FILE = 2,
 };
 
 // On-disk inode structure
@@ -42,20 +45,43 @@ struct dinode {
     uint32_t data[NDIRECT + 1];     // Direct data blocks. Last one points to the single indirect block
 };
 
+struct inode {
+    uint32_t inum;
+    int32_t references;
+    int32_t valid; // has the inode been read from disk?
+    struct sleeplock lock;
+    struct dinode d;
+};
+
 #define INODES_PER_BLOCK (BLOCKSIZE / sizeof(struct dinode))
 #define BITS_PER_BLOCK (BLOCKSIZE * 8)
 #define IBLOCK(i, superblock) (superblock.inodestart + ((i) / INODES_PER_BLOCK))
 #define NINODES 200 // inodes on disk
 #define NINODE 50 // inodes in memory
+#define ROOTINUM 1
+
+void fs_init(void);
+uint32_t balloc(void);
+void bfree(uint32_t bno);
+
+/* DIRECTORY */
 
 #define DIRSIZE 15
 
 // Directory entry
 struct direntry {
-    uint32_t inode;
+    uint32_t inode; // 0 = free
     char name[DIRSIZE+1];
 };
 
-void fs_init(void);
-uint32_t balloc(void);
-void bfree(uint32_t bno);
+// Looks up the name in the directory. If it finds it, calls iget() and returns the inode, placing the offset inside the directory in poff
+// It does not call ilock()! This call is equivalent to a call to iget() in that respect.
+// If it fails, it returns NULL. If poff is NULL, it is not touched.
+struct inode *dirlookup(struct inode *dirp, char *name, uint32_t *poff);
+
+int dirlink(struct inode *dirp, char *name, uint32_t ino); // adds an entry to the given directory
+
+/* PATHNAME */
+
+// Returns an iget()'d inode at the given path, and puts its name in name, which must be DIRSIZE
+struct inode *pathlookup(char *path, char *name);

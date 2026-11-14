@@ -41,7 +41,6 @@ void disk_read(struct bbuf *b) {
 
     // Perform operation (happens immediately on write)
     *(unsigned int *)DSK_CTRL = op;
-    asm volatile ("break");
 
     release();
 }

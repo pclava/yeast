@@ -5,9 +5,10 @@
 #include "log.h"
 #include "buffer.h"
 #include "inode.h"
+#include "proc.h"
 #include "printk.h"
 
-struct superblock sb;
+struct superblock sb = {0};
 
 static void * memset_aligned(uint32_t *dst, uint32_t c, size_t n) {
     uint32_t *dest = dst;
@@ -17,28 +18,61 @@ static void * memset_aligned(uint32_t *dst, uint32_t c, size_t n) {
     return dst;
 }
 
-static void * memcpy(void *vdst, const void *vsrc, int n)
-{
-    char *dst;
-    const char *src;
-
-    dst = vdst;
-    src = vsrc;
-    if (src > dst) {
-        while (n-- > 0)
-            *dst++ = *src++;
-    } else {
-        dst += n;
-        src += n;
-        while (n-- > 0)
-            *--dst = *--src;
+static uint32_t *memcpy_aligned(const uint32_t *src, uint32_t *dst, size_t n) {
+    uint32_t *dest = dst;
+    while (n--) {
+        *dest++ = *src++;
     }
-    return vdst;
+    return dst;
+}
+
+static uint32_t *memset(void *dst, char c, size_t n) {
+    size_t w = n/4;
+    size_t left = n%4;
+    uint32_t C = c || (c << 8) || (c << 16) || (c << 24);
+    memset_aligned(dst, C, left);
+    unsigned char *d = dst+(w * sizeof(uint32_t));
+    while (left--) {
+        *d++ = c;
+    }
+    return dst;
+}
+
+static void *memcpy(const void *src, void *dst, size_t n) {
+    size_t w = n/4;
+    size_t left = n%4;
+    memcpy_aligned((const uint32_t *)src, (uint32_t *)dst, w);
+    const unsigned char *s = (const unsigned char *)src+(w * sizeof(uint32_t));
+    unsigned char *d = dst+(w * sizeof(uint32_t));
+    while (left--) {
+        *d++ = *s++;
+    }
+    return dst;
+}
+
+static int strncmp(const char *s1, const char *s2, size_t n)
+{
+    if (n == 0)
+        return (0);
+    do {
+        if (*s1 != *s2++)
+            return (*(unsigned char *)s1 - *(unsigned char *)--s2);
+        if (*s1++ == 0)
+            break;
+    } while (--n != 0);
+    return (0);
+}
+
+static size_t strlen(const char *str) {
+    const char *s;
+    for (s = str; *s; ++s)
+        ;
+    return (s - str);
 }
 
 static void read_superblock(struct superblock *super) {
     struct bbuf *block = bread(1);
-    memcpy(super, block, sizeof(struct superblock));
+    memcpy(block->data, super, sizeof(struct superblock));
     brelse(block);
 }
 
@@ -108,4 +142,91 @@ void fs_init(void) {
 
     // Init inodes
     inodes_init();
+}
+
+struct inode *dirlookup(struct inode *dirp, char *name, uint32_t *poff) {
+    if (dirp == NULL || dirp->d.type != F_DIRECTORY) return NULL;
+
+    struct direntry dirent;
+    for (uint32_t off = 0; off < dirp->d.size; off += sizeof(struct direntry)) {
+        readi(dirp, &dirent, off, sizeof(dirent));
+        if (dirent.inode != 0) {
+            if (strncmp(name, dirent.name, DIRSIZE) == 0) {
+                if (poff != NULL) *poff = off;
+                struct inode *inode = iget(dirent.inode);
+                return inode;
+            }
+        }
+    }
+
+    return NULL;
+}
+
+// 0 on success; -1 on failure
+int dirlink(struct inode *dirp, char *name, uint32_t ino) {
+    if (dirp == NULL || dirp->d.type != F_DIRECTORY) return -1;
+
+    if (strlen(name) > DIRSIZE) return -1;
+
+    // Check it doesn't exist already
+    struct inode *ip;
+    if ((ip = dirlookup(dirp, name, 0)) != 0) {
+        iput(ip);
+        return -1;
+    }
+
+    uint32_t off;
+    struct direntry dirent;
+    for (off = 0; off < dirp->d.size; off += sizeof(struct direntry)) {
+        readi(dirp, &dirent, off, sizeof(struct direntry));
+        if (dirent.inode == 0) break;
+    }
+
+    dirent.inode = ino;
+    memset(dirent.name, 0, DIRSIZE+1);
+    memcpy(name, dirent.name, DIRSIZE);
+    if (writei(dirp, &dirent, off, sizeof(struct direntry)) != sizeof(struct direntry)) return -1;
+    return 0;
+}
+
+// Gets the next name in a path, puts it in name, and returns the rest of the path
+// name should be at least DIRSIZE
+static char *get_name(char *path, char *name) {
+    char *p = path;
+    while (*p == '/') p++;
+    if (*p == '\0') return NULL;
+    size_t count = 0;
+    while (*p != '/' && *p != '\0') {
+        p++;
+        count++;
+    }
+    if (count > DIRSIZE) {count = DIRSIZE;} // TODO: what happens here?
+    memcpy(path, name, count);
+    name[count] = '\0';
+    while (*p == '/') p++;
+    return p;
+}
+
+struct inode *pathlookup(char *path, char *name) {
+    struct inode *cur;
+    struct inode *next;
+
+    if (*path == '/') cur = iget(ROOTINUM);
+    else cur = idup(getproc()->cwd);
+
+    while ((path = get_name(path, name)) != NULL) {
+        ilock(cur);
+        if (cur->d.type != F_DIRECTORY || cur->d.nlink == 0) goto fail;
+        if ((next = dirlookup(cur, name, NULL)) == 0) goto fail;
+        iunlock(cur);
+        iput(cur);
+        cur = next;
+    }
+
+    return cur;
+
+    fail:
+    iunlock(cur);
+    iput(cur);
+    return NULL;
 }

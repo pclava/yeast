@@ -79,6 +79,7 @@ struct proc {
     void *pbrk;                     // Program break (virtual address)
     unsigned char parent;           // Parent process ID
     unsigned int pages;             // Pages currently in use
+    struct inode *cwd;
     uint32_t code;                  // Exit code
 };
 

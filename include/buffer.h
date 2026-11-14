@@ -40,8 +40,6 @@ void bcache_init(void);
 void disk_read(struct bbuf *b);
 void disk_write(struct bbuf *b);
 
-void disk_test();
-
 // Buffer operations
 struct bbuf *bread(uint32_t bno);       // Reads block from disk, acquires sleeplock on buffer
 void bwrite(struct bbuf *b);            // Writes buffer to disk
