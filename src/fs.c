@@ -6,6 +6,7 @@
 #include "buffer.h"
 #include "inode.h"
 #include "proc.h"
+#include "file.h"
 #include "printk.h"
 
 struct superblock sb = {0};
@@ -142,6 +143,9 @@ void fs_init(void) {
 
     // Init inodes
     inodes_init();
+
+    // Init file table
+    fileinit();
 }
 
 struct inode *dirlookup(struct inode *dirp, char *name, uint32_t *poff) {
