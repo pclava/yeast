@@ -1,6 +1,5 @@
 
 #include "user.h"
-#include "vga.h"
 
 void intro();
 void colors();

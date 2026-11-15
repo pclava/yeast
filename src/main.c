@@ -40,7 +40,6 @@ static void kernel_main(void)
     printk(KERNEL_MSG "First process initialized\n\r");
 
     pop_off();
-    printk("(" ANSI_COLOR_YELLOW "yeast" ANSI_COLOR_RESET ") Entering normal operation\n\r");
 
     // Enable terminal key echo
     term_echo(1);

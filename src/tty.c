@@ -235,7 +235,7 @@ static void read_command() {
 
 // Called when cursor reaches bottom of terminal
 static void scroll() {
-    memcpy(term_buffer + VGA_WIDTH, term_buffer, (VGA_BUFFER_SIZE - VGA_WIDTH) * sizeof(uint16_t));
+    memcpy(term_buffer, term_buffer + VGA_WIDTH, (VGA_BUFFER_SIZE - VGA_WIDTH) * sizeof(uint16_t));
     term_row -= 1;
     uint8_t old_colors = term_color;
     term_color = TERM_COLOR_DEF;

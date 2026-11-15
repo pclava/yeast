@@ -5,6 +5,7 @@
 #include "buffer.h"
 #include "fs.h"
 #include "log.h"
+#include "memlayout.h"
 #include "string.h"
 #include "printk.h"
 
@@ -65,7 +66,7 @@ void ilock(struct inode *inode) {
         struct dinode *dinodes = (struct dinode *)bp->data;
         struct dinode *dp = &dinodes[inode->inum % INODES_PER_BLOCK];
         // copy dp into inode.d
-        memcpy(dp, &inode->d, sizeof(struct dinode));
+        memcpy(&inode->d, dp, sizeof(struct dinode));
         brelse(bp);
         inode->valid = 1;
     }
@@ -145,7 +146,7 @@ void iupdate(struct inode *inode) {
     struct bbuf *bp = bread(bno);
 
     struct dinode *dinode = (struct dinode *)bp->data + inode->inum % INODES_PER_BLOCK;
-    memcpy(&inode->d, dinode, sizeof(struct dinode));
+    memcpy(dinode, &inode->d, sizeof(struct dinode));
     log_write(bp);
 
     brelse(bp);
@@ -194,12 +195,13 @@ uint32_t readi(struct inode *ip, void *addr, const size_t offset, size_t n) {
         uint32_t copy = min(block_left, left);
 
         // Copy data
-        memcpy(&bp->data[off % BLOCKSIZE], addr, copy);
+        memcpy(addr, &bp->data[off % BLOCKSIZE], copy);
 
         // Increment
         count += copy;
         off += copy;
         left -= copy;
+        addr += copy;
 
         brelse(bp);
     }
@@ -223,7 +225,7 @@ uint32_t writei(struct inode *ip, void *addr, size_t offset, size_t n) {
         uint32_t block_left = BLOCKSIZE - (off % BLOCKSIZE);
         uint32_t copy = min(block_left, left);
 
-        memcpy(addr, &bp->data[off % BLOCKSIZE], copy);
+        memcpy(&bp->data[off % BLOCKSIZE], addr, copy);
         log_write(bp);
 
         left -= copy;

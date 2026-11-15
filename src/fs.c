@@ -14,7 +14,7 @@ struct superblock sb = {0};
 
 static void read_superblock(struct superblock *super) {
     struct bbuf *block = bread(1);
-    memcpy(block->data, super, sizeof(struct superblock));
+    memcpy(super, block->data, sizeof(struct superblock));
     brelse(block);
 }
 
@@ -129,7 +129,7 @@ int dirlink(struct inode *dirp, char *name, uint32_t ino) {
 
     dirent.inode = ino;
     memset(dirent.name, 0, DIRSIZE+1);
-    memcpy(name, dirent.name, DIRSIZE);
+    memcpy(dirent.name, name, DIRSIZE);
     if (writei(dirp, &dirent, off, sizeof(struct direntry)) != sizeof(struct direntry)) return -1;
     return 0;
 }
@@ -140,14 +140,15 @@ static char *get_name(char *path, char *name) {
     char *p = path;
     while (*p == '/') p++;
     if (*p == '\0') return NULL;
+    char *s = p;
     size_t count = 0;
     while (*p != '/' && *p != '\0') {
         p++;
         count++;
     }
     if (count > DIRSIZE) {count = DIRSIZE;} // TODO: what happens here?
-    memcpy(path, name, count);
-    name[count] = '\0';
+    memcpy(name, s, count+1);
+    name[count+1] = '\0';
     while (*p == '/') p++;
     return p;
 }
@@ -159,10 +160,17 @@ struct inode *pathlookup(char *path, char *name) {
     if (*path == '/') cur = iget(ROOTINUM);
     else cur = idup(getproc()->cwd);
 
+    ilock(cur);
+    iunlock(cur);
+
     while ((path = get_name(path, name)) != NULL) {
         ilock(cur);
-        if (cur->d.type != F_DIRECTORY || cur->d.nlink == 0) goto fail;
-        if ((next = dirlookup(cur, name, NULL)) == 0) goto fail;
+        if (cur->d.type != F_DIRECTORY || cur->d.nlink == 0) {
+            goto fail;
+        }
+        if ((next = dirlookup(cur, name, NULL)) == 0) {
+            goto fail;
+        }
         iunlock(cur);
         iput(cur);
         cur = next;

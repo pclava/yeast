@@ -5,6 +5,7 @@
 #include "cpu.h"
 #include "kalloc.h"
 #include "main.h"
+#include "string.h"
 #include "printk.h"
 #include "vga.h"
 
@@ -65,22 +66,13 @@ void alloc_page(struct PTE *pte, const unsigned char asid, const uint32_t vpn) {
     // printk(KERNEL_MSG "allocated VPN 0x%x of process %d @ PFN 0x%x\n\r", vpn, asid, pte->PFN);
 }
 
-// Copies a given number of words between two word-aligned addresses
-static uint32_t * memcpy_aligned(const uint32_t *src, uint32_t *dst, size_t n) {
-    uint32_t *dest = dst;
-    while (n--) {
-        *dest++ = *src++;
-    }
-    return dst;
-}
-
 // Copies the frame at src (PFN) to dst (PFN)
 static void copy_frame(uint32_t src, uint32_t dst) {
     // Read from aliased user memory
     src += UMEM_ALIASDIFF;
     dst += UMEM_ALIASDIFF;
 
-    memcpy_aligned((uint32_t *)src, (uint32_t *)dst, PAGE_SIZE/sizeof(uint32_t));
+    memcpy_aligned((uint32_t *)dst, (uint32_t *)src, PAGE_SIZE/sizeof(uint32_t));
 }
 
 void vm_copy(struct proc *old, struct proc *new) {

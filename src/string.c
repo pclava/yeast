@@ -8,7 +8,7 @@ void * memset_aligned(uint32_t *dst, uint32_t c, size_t n) {
     return dst;
 }
 
-uint32_t *memcpy_aligned(const uint32_t *src, uint32_t *dst, size_t n) {
+uint32_t *memcpy_aligned(uint32_t *dst, const uint32_t *src, size_t n) {
     uint32_t *dest = dst;
     while (n--) {
         *dest++ = *src++;
@@ -17,18 +17,26 @@ uint32_t *memcpy_aligned(const uint32_t *src, uint32_t *dst, size_t n) {
 }
 
 uint32_t *memset(void *dst, char c, size_t n) {
-    size_t w = n/4;
-    size_t left = n%4;
-    uint32_t C = c || (c << 8) || (c << 16) || (c << 24);
-    memset_aligned(dst, C, left);
-    unsigned char *d = dst+(w * sizeof(uint32_t));
-    while (left--) {
+    unsigned char *d = dst;
+
+    // TODO: both here and in memcpy, don't check if n%4 == 4, just do the aligned operation for as many bytes
+    // as possible once the address(es) are word-aligned
+    while ((int) d % 4 != 0 || n % 4 != 0) {
         *d++ = c;
+        n--;
+        if (n == 0) break;
     }
+
+    if (n) {
+        size_t w = n/4;
+        uint32_t C = c || (c << 8) || (c << 16) || (c << 24);
+        memset_aligned((uint32_t *)d, C, w);
+    }
+
     return dst;
 }
 
-void *memcpy(const void *src, void *dst, size_t n) {
+void *memcpy(void *dst, const void *src, size_t n) {
     const unsigned char *s = src;
     unsigned char *d = dst;
 
@@ -43,7 +51,7 @@ void *memcpy(const void *src, void *dst, size_t n) {
     if (n) {
         // copy rest
         size_t w = n/4;
-        memcpy_aligned((const uint32_t *)s, (uint32_t *)d, w);
+        memcpy_aligned((uint32_t *)d, (const uint32_t *)s, w);
     }
 
     return dst;

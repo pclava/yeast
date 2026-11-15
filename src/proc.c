@@ -98,11 +98,13 @@ void switch_to(struct proc *p) {
     // When process switches back to kernel (say, on yield() or sleep()), we end up here
 }
 
+int first = 1;
 void forkret(void) {
     release();
     struct proc *p = getproc();
-    if (p->PID == 0) {
+    if (first) {
         // First process! Was not created by a fork, and thus has not been exec'd yet
+        first = 0;
 
         // Initialize page table
         pt_init(0);
@@ -110,7 +112,13 @@ void forkret(void) {
         fs_init();
         printk(KERNEL_MSG "File system initialized\n\r");
 
-        exec("/userprgm.out", 1, (char *[]){"/init"});
+        char name[DIRSIZE+1];
+        p->cwd = pathlookup("/", name);
+
+        printk("(" ANSI_COLOR_YELLOW "yeast" ANSI_COLOR_RESET ") Entering normal operation\n\r");
+        if (exec("/userprgm.out", 1, (char *[]){"/userprgm.out"}) == -1) {
+            panic("could not exec");
+        }
     }
 
     prepare_return();
@@ -181,24 +189,34 @@ int exec(char *path, int argc, char **argv) {
     begin_op();
     char name[DIRSIZE+1];
     if ((ip = pathlookup(path, name)) == NULL) {
+        printk(":(\n\r");
         end_op();
         return -1;
     }
+    ilock(ip);
 
     // Read header
-    if (readi(ip, &hdr, 0, sizeof(struct mof_header))) goto fail;
+    if (readi(ip, &hdr, 0, sizeof(struct mof_header)) != sizeof(struct mof_header)) {
+        printk("exec: failed to read header\n\r");
+        goto fail;
+    }
     if (!mof_is_valid(&hdr)) {
-        printk(KERNEL_MSG "exec: invalid executable\n\r");
+        printk("exec: invalid executable\n\r");
         goto fail;
     }
 
     // Read text
     void *text = (void *)UTEXT0;
-    if (readi(ip, text, MOF_TXTOFF, hdr.text) != hdr.text) goto fail;
+    if (readi(ip, text, MOF_TXTOFF, hdr.text) != hdr.text) {
+        goto fail;
+    }
 
     // Read data
     void *data = (void *)UDATA0;
-    if (readi(ip, data, MOF_DTAOFF(&hdr), hdr.data) != hdr.data) goto fail;
+    if (readi(ip, data, MOF_DTAOFF(&hdr), hdr.data) != hdr.data) {
+        printk(":(\n\r");
+        goto fail;
+    }
 
     iunlock(ip);
     iput(ip);
@@ -318,6 +336,7 @@ uint32_t fork(void) {
     np->pbrk = (void *)HEAP0;
     np->parent = p->PID;
     np->pages = p->pages;
+    np->cwd = p->cwd;
 
     // Return pid to parent
     return pid;
