@@ -11,6 +11,7 @@
 #define KDATA0          0x90000000
 #define UTEXT0          0x00400000
 #define UDATA0          0x10010000
+#define STACKTOP        0x80000000  // top of stack (not part of stack! 0x7fffffff is the last accessible byte)
 #define STACK0          0x7ffffffc
 #define STACK_PG0       0x7ffff000  // First page of the stack
 #define KSTACK0         0x9ffffffc  // Each context has a 1 page stack at KSTACK0 - PG_SIZE*CONTEXT_ID

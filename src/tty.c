@@ -6,6 +6,7 @@
 #include "memlayout.h"
 #include "printk.h"
 #include "proc.h"
+#include "string.h"
 
 // Default terminal color (white on black)
 #define TERM_COLOR_DEF vga_entry_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK)
@@ -50,24 +51,6 @@ enum vga_color ansi_to_vga_bright[] = {
 };
 
 #define C(x) ((x) & 0x1f) // get control key from uppercase letter
-
-static void * memmove(void *vdst, const void *vsrc, int n) {
-    char *dst;
-    const char *src;
-
-    dst = vdst;
-    src = vsrc;
-    if (src > dst) {
-        while (n-- > 0)
-            *dst++ = *src++;
-    } else {
-        dst += n;
-        src += n;
-        while (n-- > 0)
-            *--dst = *--src;
-    }
-    return vdst;
-}
 
 // Circular input buffer
 // We use 32 bit indices in the hopes that the user does not type 4 billion keys
@@ -185,14 +168,6 @@ void term_intr(uint8_t c) {
 
 }
 
-static size_t strlen(const char* str)
-{
-    size_t len = 0;
-    while (str[len])
-        len++;
-    return len;
-}
-
 void term_setcolor(const uint8_t color)
 {
     term_color = color;
@@ -260,7 +235,7 @@ static void read_command() {
 
 // Called when cursor reaches bottom of terminal
 static void scroll() {
-    memmove(term_buffer, term_buffer + VGA_WIDTH, (VGA_BUFFER_SIZE - VGA_WIDTH) * sizeof(uint16_t));
+    memcpy(term_buffer + VGA_WIDTH, term_buffer, (VGA_BUFFER_SIZE - VGA_WIDTH) * sizeof(uint16_t));
     term_row -= 1;
     uint8_t old_colors = term_color;
     term_color = TERM_COLOR_DEF;

@@ -36,23 +36,13 @@ static void kernel_main(void)
     printk(KERNEL_MSG "Physical memory initialized\n\r");
     procinit();
     printk(KERNEL_MSG "Process table initialized\n\r");
+    first_proc();
+    printk(KERNEL_MSG "First process initialized\n\r");
 
-    pop_off(); // Enable interrupts, but they won't come through until userret because EXL is on
-
-    // === BAD ===
-    // Initialize first process
-    // first_proc();
-
-    cpu.proc = proctable;
-    // should be done in first proc initialization
-    fs_init();
-    printk(KERNEL_MSG "File system initialized\n\r");
-
-    // === END BAD ===
-
+    pop_off();
     printk("(" ANSI_COLOR_YELLOW "yeast" ANSI_COLOR_RESET ") Entering normal operation\n\r");
 
-    // Enable terminal press echo
+    // Enable terminal key echo
     term_echo(1);
 
     // Jump to scheduler

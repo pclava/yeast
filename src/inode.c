@@ -5,46 +5,10 @@
 #include "buffer.h"
 #include "fs.h"
 #include "log.h"
+#include "string.h"
 #include "printk.h"
 
 struct inode itable[NINODE];
-
-static uint32_t *memset_aligned(uint32_t *dst, uint32_t c, size_t n) {
-    uint32_t *dest = dst;
-    while (n--) {
-        *dest++ = c;
-    }
-    return dst;
-}
-
-static uint32_t *memcpy_aligned(const uint32_t *src, uint32_t *dst, size_t n) {
-    uint32_t *dest = dst;
-    while (n--) {
-        *dest++ = *src++;
-    }
-    return dst;
-}
-
-static void *memcpy(const void *src, void *dst, size_t n) {
-    const unsigned char *s = src;
-    unsigned char *d = dst;
-
-    // copy until both addresses are word-aligned
-    while (((int) s % 4 != 0) || ((int) d % 4 != 0) || (n % 4 != 0)) {
-        *d++ = *s++;
-        n--;
-        if (n == 0) break;
-    }
-
-    // Only once once all word-aligned
-    if (n) {
-        // copy rest
-        size_t w = n/4;
-        memcpy_aligned((const uint32_t *)s, (uint32_t *)d, w);
-    }
-
-    return dst;
-}
 
 static uint32_t bmap(uint32_t data_block, struct inode *ip);
 

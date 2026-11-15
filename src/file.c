@@ -2,25 +2,7 @@
 
 #include "log.h"
 #include "printk.h"
-
-static void * memset_aligned(uint32_t *dst, uint32_t c, size_t n) {
-    uint32_t *dest = dst;
-    while (n--) {
-        *dest++ = c;
-    }
-    return dst;
-}
-static uint32_t *memset(void *dst, char c, size_t n) {
-    size_t w = n/4;
-    size_t left = n%4;
-    uint32_t C = c || (c << 8) || (c << 16) || (c << 24);
-    memset_aligned(dst, C, left);
-    unsigned char *d = dst+(w * sizeof(uint32_t));
-    while (left--) {
-        *d++ = c;
-    }
-    return dst;
-}
+#include "string.h"
 
 typedef struct file * fileptr;
 

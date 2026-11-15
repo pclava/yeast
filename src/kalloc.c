@@ -21,19 +21,10 @@
 
 #include "main.h"
 #include "memlayout.h"
+#include "string.h"
 #include "printk.h"
 #include "vga.h"
 #include "vm.h"
-
-// Fills in n-many words `c` into word-aligned address `dst`
-// Significantly faster than simple memset
-static void * memset_aligned(uint32_t *dst, uint32_t c, size_t n) {
-    uint32_t *dest = dst;
-    while (n--) {
-        *dest++ = c;
-    }
-    return dst;
-}
 
 static void freerange(void *pa_start, void *pa_end)
 {

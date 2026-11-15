@@ -1,7 +1,5 @@
 #include "buffer.h"
 
-#include <stddef.h>
-
 #include "memlayout.h"
 #include "printk.h"
 
@@ -14,14 +12,6 @@ struct {
     struct bbuf bufs[NBUFS];
     struct bbuf *head;
 } bcache;
-
-static void * memset (void *dest, register int val, register size_t len)
-{
-    register unsigned char *ptr = (unsigned char*)dest;
-    while (len-- > 0)
-        *ptr++ = val;
-    return dest;
-}
 
 // NOTE: the emulator currently does disk operations atomically
 // to be more realistic, we would want disk operations to be slow
