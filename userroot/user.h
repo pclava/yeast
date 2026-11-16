@@ -8,7 +8,6 @@ enum termop {
 
 // === SYSCALLS (usys.s) ===
 int fork(void);
-void exec(int arg);    // TODO: temporary!
 int write(int fd, const void *buffer, int n);
 int read(int fd, void *buffer, int n);
 char *sbrk(int n);
@@ -16,6 +15,7 @@ void termctl(enum termop op);
 void exit(unsigned int code);
 unsigned int wait(unsigned int *code);
 void sleep(unsigned int ms);
+int exec(const char *path, char *argv[]);
 
 // === ULIB (ulib.c) ===
 char *strcpy(char *, const char *);

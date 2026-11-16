@@ -7,6 +7,7 @@
 #pragma once
 
 #define NFILE 64
+#define NOPEN 16
 #include <stdint.h>
 #include "inode.h"
 

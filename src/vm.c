@@ -81,7 +81,6 @@ void vm_copy(struct proc *old, struct proc *new) {
     const unsigned char asid_new = new->PID;
 
     const struct page_table *pt_old = &page_tables[asid_old];
-    const struct page_table *pt_new = &page_tables[asid_new];
 
     unsigned int to_copy = old->pages;  // Number of pages used by old process that still need to be copied
 

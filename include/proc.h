@@ -8,6 +8,8 @@
 #pragma once
 #include <stdint.h>
 
+#include "file.h"
+
 
 // Kernel thread
 struct context {
@@ -79,7 +81,8 @@ struct proc {
     void *pbrk;                     // Program break (virtual address)
     unsigned char parent;           // Parent process ID
     unsigned int pages;             // Pages currently in use
-    struct inode *cwd;
+    struct inode *cwd;              // Current working directory inode
+    struct file *ofiles[NOPEN];     // Open files
     uint32_t code;                  // Exit code
 };
 

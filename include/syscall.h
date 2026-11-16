@@ -13,20 +13,19 @@
  */
 
 #pragma once
-#define SYS_printint    1
-#define SYS_printstr    4
-#define SYS_readstr     8
-#define SYS_sbrk        9
-#define SYS_exit        10
-#define SYS_printchr    11
-#define SYS_readfile    14
-#define SYS_writefile   15
-#define SYS_termctl     28
-#define SYS_exec        29
-#define SYS_fork        30
-#define SYS_wait        31
-#define SYS_sleep       32
-#define SYSDOMAIN       32 // largest syscall and number of syscalls
+
+// Process syscalls
+#define SYS_sbrk        1
+#define SYS_exit        2
+#define SYS_termctl     3
+#define SYS_fork        4
+#define SYS_wait        5
+#define SYS_sleep       6
+// File syscalls
+#define SYS_read        20
+#define SYS_write       21
+#define SYS_exec        22
+#define SYSDOMAIN       22 // largest syscall and number of syscalls
 
 // Execute the syscall based on the contents of the trapframe's $v0 and argument registers
 // Called by usertrap() in trap.c

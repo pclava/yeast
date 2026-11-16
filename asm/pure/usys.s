@@ -7,46 +7,10 @@
 
     .text
 
-# int fork(void)
-    .globl  fork
-fork:
-    li      $v0, _SYSFORK
-    syscall
-    #break
-    jr      $ra
-
-# void exec(void)
-    .globl  exec
-exec:
-    li      $v0, _SYSEXEC
-    syscall
-    jr      $ra
-
-# int write(int fd, const void *buffer, int n)
-    .globl  write
-write:
-    li      $v0, _SYSWRITEFILE
-    syscall
-    jr      $ra
-
-# int read(int fd, void *buffer, int n)
-    .globl  read
-read:
-    li      $v0, _SYSREADFILE
-    syscall
-    jr      $ra
-
 # char *sbrk(int n)
     .globl  sbrk
 sbrk:
     li      $v0, _SYSSBRK
-    syscall
-    jr      $ra
-
-# void termctl(enum termop op)
-    .globl  termctl
-termctl:
-    li      $v0, _SYSTERMCTL
     syscall
     jr      $ra
 
@@ -57,6 +21,21 @@ exit:
     syscall
     jr      $ra
 
+# void termctl(enum termop op)
+    .globl  termctl
+termctl:
+    li      $v0, _SYSTERMCTL
+    syscall
+    jr      $ra
+
+# int fork(void)
+    .globl  fork
+fork:
+    li      $v0, _SYSFORK
+    syscall
+    #break
+    jr      $ra
+
 # unsigned int wait(unsigned int *code)
     .globl  wait
 wait:
@@ -64,8 +43,30 @@ wait:
     syscall
     jr      $ra
 
+# void sleep(unsigned int ms)
     .globl  sleep
 sleep:
     li      $v0, _SYSSLEEP
+    syscall
+    jr      $ra
+
+# int write(int fd, const void *buffer, int n)
+    .globl  write
+write:
+    li      $v0, _SYSWRITE
+    syscall
+    jr      $ra
+
+# int read(int fd, void *buffer, int n)
+    .globl  read
+read:
+    li      $v0, _SYSREAD
+    syscall
+    jr      $ra
+
+# int exec(const char *path, char *argv[])
+    .globl  exec
+exec:
+    li      $v0, _SYSEXEC
     syscall
     jr      $ra

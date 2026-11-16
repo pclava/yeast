@@ -24,10 +24,11 @@ struct proc * getproc(void) {
 }
 
 void procinit(void) {
-    struct proc *p;
+    memset(proctable, 0, sizeof(proctable));
     unsigned int index = 0;
-    for (p = proctable; p < &proctable[NPROC]; p++) {
+    for (struct proc *p = proctable; p < &proctable[NPROC]; p++) {
         p->state = UNUSED;
+        p->PID = index;
         index++;
     }
 }
@@ -180,6 +181,7 @@ void wakeup(const void *chan) {
     }
 }
 
+// Note: exec'd process keeps its open files
 int exec(char *path, int argc, char **argv) {
     struct proc *p = getproc();
     struct inode *ip = NULL;
@@ -262,49 +264,6 @@ int exec(char *path, int argc, char **argv) {
     return -1;
 }
 
-// // Loads a user program
-// void exec(int arg) {
-//     // TODO: this is mostly wrong
-//     // Write all of user text and user data
-//     struct proc *p = getproc();
-//
-//     *file_reg &= ~(0b111);
-//     uint8_t *start = (uint8_t *)UTEXT0;
-//     int count = 0;
-//     while ((*file_reg & 0b100) == 0) {
-//         // Ask for text
-//         *file_reg |= 0b01;
-//         // Text should be in file_buffer
-//         for (int offset = 0; offset < PAGE_SIZE; offset++) {
-//             start[offset] = file_buffer[offset];
-//         }
-//         start += PAGE_SIZE;
-//         count++;
-//     }
-//
-//     *file_reg &= ~(0b111);
-//     start = (uint8_t *)UDATA0;
-//     while ((*file_reg & 0b100) == 0) {
-//         // Ask for data
-//         *file_reg |= 0b11;
-//         // Text should be in file_buffer
-//         for (int offset = 0; offset < PAGE_SIZE; offset++) {
-//             start[offset] = file_buffer[offset];
-//         }
-//         start += PAGE_SIZE;
-//         count++;
-//     }
-//
-//     // Place var in stack
-//     *(uint32_t *)STACK0 = arg;
-//     struct PTE pte;
-//     pte_decode(&pte, pte_lookup(0, STACK0));
-//
-//     // Setup trapframe
-//     p->trapframe->pc = UTEXT0;
-//     p->trapframe->sp = STACK0-4; // 1 argument has been placed already
-// }
-
 uint32_t fork(void) {
     struct proc *p = getproc();
 
@@ -336,7 +295,15 @@ uint32_t fork(void) {
     np->pbrk = (void *)HEAP0;
     np->parent = p->PID;
     np->pages = p->pages;
-    np->cwd = p->cwd;
+    np->cwd = idup(p->cwd);
+
+    // Duplicate file references
+    memset(&np->ofiles, 0, sizeof(np->ofiles));
+    for (int i = 0; i < NOPEN; i++) {
+        if (p->ofiles[i]) {
+            np->ofiles[i] = filedup(p->ofiles[i]);
+        }
+    }
 
     // Return pid to parent
     return pid;
