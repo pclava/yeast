@@ -4,6 +4,7 @@
 #include "memlayout.h"
 #include "cpu.h"
 #include "kalloc.h"
+#include "lock.h"
 #include "main.h"
 #include "string.h"
 #include "printk.h"
@@ -60,7 +61,7 @@ void alloc_page(struct PTE *pte, const unsigned char asid, const uint32_t vpn) {
     pte_write(pte, asid, vpn);
 
     // Increment process page count
-    struct proc *p = getproc();
+    struct proc *p = &proctable[asid];
     p->pages++;
 
     // printk(KERNEL_MSG "allocated VPN 0x%x of process %d @ PFN 0x%x\n\r", vpn, asid, pte->PFN);
@@ -90,6 +91,7 @@ void vm_copy(struct proc *old, struct proc *new) {
     pte_decode(&pte_old, *p);
 
     int i = 0;
+    acquire();
     while (pte_old.valid && to_copy) {
         // Allocate new page
         struct PTE pte_new;
@@ -141,6 +143,7 @@ void vm_copy(struct proc *old, struct proc *new) {
         i++;
         pte_decode(&pte_old, *--p); // stack grows down!
     }
+    release();
 
     if (to_copy != 0) {
         panic("vm_copy");

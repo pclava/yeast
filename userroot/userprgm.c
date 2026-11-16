@@ -11,16 +11,17 @@ int main() {
 
     int pid = fork();
     if (pid == 0) {
-        printf("Sleeping...");
-        sleep(2000);
-        printf(" awake!\n\r");
-        exit(4312);
+        int x = fork();
+        if (x == 0) {
+            while (1) {}
+        }
+        while (1) {}
     }
-    else {
-        unsigned int status;
-        unsigned char child = wait(&status);
-        printf("> child %u exited with code %u\n\r", child, status);
-    }
+    // else {
+    //     unsigned int status;
+    //     unsigned char child = wait(&status);
+    //     printf("> child %u exited with code %u\n\r", child, status);
+    // }
 
     char buf[128];
     while (1) {
