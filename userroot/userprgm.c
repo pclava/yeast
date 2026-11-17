@@ -1,11 +1,19 @@
 
+#include "file.h"
 #include "user.h"
+#include "fs.h"
 
 void intro();
 void colors();
 void yeast();
+void ls();
 
 int main() {
+
+    // open stdin,out,err
+    int fd0 = open("console", O_RDWR | O_CREAT);
+    int fd1 = dup(0);
+    int fd2 = dup(0);
 
     intro();
 
@@ -44,6 +52,9 @@ int main() {
         }
         else if (strcmp(buf, "yeast") == 0) {
             yeast();
+        }
+        else if (strcmp(buf, "ls") == 0) {
+            ls();
         }
         else if (buf[0] == '\0') {
             continue;
@@ -88,4 +99,16 @@ void intro() {
         printf(" ");
     }
     printf(ANSI_COLOR_RESET "\n\r");
+}
+
+void ls() {
+    int fd = open("/", O_RDONLY);
+
+    struct direntry de;
+    while (read(fd, &de, sizeof(de)) == sizeof(de)) {
+        if (de.inode == 0) continue;
+        printf("%s\n\r", de.name);
+    }
+
+    close(fd);
 }

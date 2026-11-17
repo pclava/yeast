@@ -237,7 +237,6 @@ static struct inode *create(char *path, enum file_type type) {
 
     // Link to parent
     add_direntry(parent, name, ip->inum);
-    iunlock(ip);
 
     iunlock(parent);
     iput(parent);
@@ -265,7 +264,8 @@ static uint32_t sys_open(void) {
             end_op();
             return -1;
         }
-    } else {
+    }
+    else {
         ip = namelookup(path);
         if (ip == NULL) {
             end_op();
@@ -280,6 +280,7 @@ static uint32_t sys_open(void) {
             return -1;
         }
     }
+
 
     // Allocate a file
     struct file *fp = filealloc();
