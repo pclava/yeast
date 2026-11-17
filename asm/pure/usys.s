@@ -70,3 +70,52 @@ exec:
     li      $v0, _SYSEXEC
     syscall
     jr      $ra
+
+# int link(const char *old, const char *new)
+    .globl  link
+link:
+    li      $v0, _SYSLINK
+    syscall
+    jr      $ra
+
+# int open(const char *path, int mode)
+    .globl  open
+open:
+    li      $v0, _SYSOPEN
+    syscall
+    jr      $ra
+
+# int mkdir(const char *path)
+    .globl  mkdir
+mkdir:
+    li      $v0, _SYSMKDIR
+    syscall
+    jr      $ra
+
+# int dup(int oldfd)
+    .globl  dup
+dup:
+    li      $v0, _SYSDUP
+    syscall
+    jr      $ra
+
+# int chdir(const char *path)
+    .globl  chdir
+chdir:
+    li      $v0, _SYSCHDIR
+    syscall
+    jr      $ra
+
+# int close(int fd)
+    .globl  close
+close:
+    li      $v0, _SYSCLOSE
+    syscall
+    jr      $ra
+
+# int unlink(const char *path)
+    .globl  unlink
+unlink:
+    li      $v0, _SYSUNLINK
+    syscall
+    jr      $ra

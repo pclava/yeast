@@ -5,11 +5,17 @@
  */
 
 #pragma once
+#include <stdint.h>
+#include "inode.h"
 
 #define NFILE 64
 #define NOPEN 16
-#include <stdint.h>
-#include "inode.h"
+
+#define O_CREAT     0b00000001
+#define O_RDONLY    0b00000010
+#define O_WRONLY    0b00000100
+#define O_RDWR      0b00001000
+#define O_TRUNC     0b00010000
 
 enum fd_type {
     FD_NONE,
@@ -32,8 +38,9 @@ extern struct file ftable[NFILE];
 
 void fileinit(void);
 
-// Finds an unused file in the table and gets a reference
+// Finds an unused file in the GLOBAL file table and gets a reference
 // Should call fileclose to drop reference
+// Returns NULL on failure
 struct file *filealloc(void);
 
 // Gets another reference to a file. Should call fileclose afterwards

@@ -25,7 +25,14 @@
 #define SYS_read        20
 #define SYS_write       21
 #define SYS_exec        22
-#define SYSDOMAIN       22 // largest syscall and number of syscalls
+#define SYS_link        23
+#define SYS_open        24
+#define SYS_mkdir       25
+#define SYS_dup         26
+#define SYS_chdir       27
+#define SYS_close       28
+#define SYS_unlink      29
+#define SYSDOMAIN       29 // largest syscall and number of syscalls
 
 // Execute the syscall based on the contents of the trapframe's $v0 and argument registers
 // Called by usertrap() in trap.c

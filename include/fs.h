@@ -79,9 +79,10 @@ struct direntry {
 // If it fails, it returns NULL. If poff is NULL, it is not touched.
 struct inode *dirlookup(struct inode *dirp, char *name, uint32_t *poff);
 
-int dirlink(struct inode *dirp, char *name, uint32_t ino); // adds an entry to the given directory
+int add_direntry(struct inode *dirp, char *name, uint32_t ino); // adds an entry to the given directory
 
 /* PATHNAME */
 
-// Returns an iget()'d inode at the given path, and puts its name in name, which must be DIRSIZE
-struct inode *pathlookup(char *path, char *name);
+// Both return an unlocked inode that has been called with iget()
+struct inode *namelookup(char *path);
+struct inode *parentlookup(char *path, char *name);

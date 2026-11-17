@@ -108,7 +108,7 @@ struct inode *dirlookup(struct inode *dirp, char *name, uint32_t *poff) {
 }
 
 // 0 on success; -1 on failure
-int dirlink(struct inode *dirp, char *name, uint32_t ino) {
+int add_direntry(struct inode *dirp, char *name, uint32_t ino) {
     if (dirp == NULL || dirp->d.type != F_DIRECTORY) return -1;
 
     if (strlen(name) > DIRSIZE) return -1;
@@ -153,7 +153,7 @@ static char *get_name(char *path, char *name) {
     return p;
 }
 
-struct inode *pathlookup(char *path, char *name) {
+static struct inode *pathlookup(char *path, char *name, int parent) {
     struct inode *cur;
     struct inode *next;
 
@@ -168,6 +168,11 @@ struct inode *pathlookup(char *path, char *name) {
         if (cur->d.type != F_DIRECTORY || cur->d.nlink == 0) {
             goto fail;
         }
+        if (parent && *path == '\0') {
+            // If there's no more path, then we've just read the parent
+            iunlock(cur);
+            return cur;
+        }
         if ((next = dirlookup(cur, name, NULL)) == 0) {
             goto fail;
         }
@@ -176,10 +181,25 @@ struct inode *pathlookup(char *path, char *name) {
         cur = next;
     }
 
+    if (parent) {
+        // no parent was given
+        iput(cur);
+        return 0;
+    }
+
     return cur;
 
     fail:
     iunlock(cur);
     iput(cur);
     return NULL;
+}
+
+struct inode *namelookup(char *path) {
+    char name[DIRSIZE+1];
+    return pathlookup(path, name, 0);
+}
+
+struct inode *parentlookup(char *path, char *name) {
+    return pathlookup(path, name, 1);
 }

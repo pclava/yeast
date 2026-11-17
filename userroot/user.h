@@ -16,6 +16,13 @@ void exit(unsigned int code);
 unsigned int wait(unsigned int *code);
 void sleep(unsigned int ms);
 int exec(const char *path, char *argv[]);
+int link(const char *old, const char *new);
+int open(const char *path, int mode);
+int mkdir(const char *path);
+int dup(int oldfd);
+int chdir(const char *path);
+int close(int fd);
+int unlink(const char *path);
 
 // === ULIB (ulib.c) ===
 char *strcpy(char *, const char *);

@@ -1,10 +1,12 @@
 #include "syscall.h"
 #include "cpu.h"
 #include "lock.h"
+#include "log.h"
 #include "main.h"
 #include "printk.h"
 #include "memlayout.h"
 #include "tty.h"
+#include "string.h"
 
 static uint32_t argraw(const int n) {
     const struct trapframe *trapframe = get_trapframe();
@@ -93,18 +95,30 @@ static int fdalloc(struct file *f) {
     return -1;
 }
 
-// TODO: rewrite
+static struct file *getfile(int fd) {
+    struct proc *p = getproc();
+    return p->ofiles[fd];
+}
+
+static void clearfd(int fd) {
+    struct proc *p = getproc();
+    p->ofiles[fd] = NULL;
+}
+
 static uint32_t sys_read(void) {
     const int fd = (int) argraw(0);
     void *buffer = (void *)argraw(1);
     const int n = (int) argraw(2);
 
-    if (fd != 0) {
-        panic("bad file descriptor"); // TODO: write error to stdout
+    // TODO: devices n allat
+    if (fd == 0 || fd == 1 || fd == 2) {
+        return term_read(buffer, n);
     }
 
-    // FD is stdin
-    return term_read(buffer, n);
+    struct file *file = getfile(fd);
+    if (file == NULL) return -1;
+
+    return fileread(file, buffer, n);
 }
 
 // TODO: rewrite
@@ -113,12 +127,15 @@ static uint32_t sys_write(void) {
     void *buffer = (void *)argraw(1);
     const int n = (int) argraw(2);
 
-    if (fd == 1 || fd == 2) {
+    if (fd == 0 || fd == 1 || fd == 2) {
         term_write(buffer, n);
         return n;
     }
 
-    panic("bad file descriptor");
+    struct file *file = getfile(fd);
+    if (file == NULL) return -1;
+
+    return filewrite(file, buffer, n);
 }
 
 static uint32_t sys_exec(void) {
@@ -132,16 +149,341 @@ static uint32_t sys_exec(void) {
     return exec(path, argc, argv);
 }
 
+static uint32_t sys_link(void) {
+    char *oldpath = (char *) argraw(0);
+    char *newpath = (char *) argraw(1);
+
+    begin_op();
+
+    // Get inode of old file
+    struct inode *target = namelookup(oldpath);
+    if (target == NULL || target->d.type != F_FILE) {
+        return -1;
+    }
+    ilock(target);
+
+    // Add a new directory entry pointing to it
+
+    // Increment nlink
+    target->d.nlink++;
+    iupdate(target);
+    iunlock(target);
+
+    // Get parent of new
+    char name[DIRSIZE+1];
+    struct inode *parent = parentlookup(newpath, name);
+    if (parent == NULL) {
+        goto fail;
+    }
+    ilock(parent);
+
+    if (add_direntry(parent, newpath, target->inum) == 0) {
+        iunlock(parent);
+        iput(parent);
+        goto fail;
+    }
+
+    iput(target);
+    iunlock(parent);
+    iput(parent);
+    end_op();
+    return 0;
+
+    fail:
+    target->d.nlink--;
+    iupdate(target);
+    iunlock(target);
+    iput(target);
+    return -1;
+
+}
+
+// Creates a new inode and returns it locked
+static struct inode *create(char *path, enum file_type type) {
+    // Get parent
+    char name[DIRSIZE+1];
+    struct inode *parent = parentlookup(path, name);
+    if (parent == NULL) return NULL;
+    ilock(parent);
+    if (parent->d.type != F_DIRECTORY) goto fail;
+
+    // Check if name already exists. If it's a file, return it
+    struct inode *ip;
+    if ((ip = dirlookup(parent, name, NULL)) != NULL) {
+        iunlock(parent);
+        iput(parent);
+        ilock(ip);
+        if (type == F_FILE && ip->d.type == F_FILE) {
+            return ip;
+        }
+        iunlock(ip);
+        iput(ip);
+        return NULL;
+    }
+
+    // Create inode
+    ip = ialloc(type);
+    if (ip == NULL) goto fail;
+    ilock(ip);
+
+    ip->d.nlink = 1;
+    iupdate(ip);
+
+    // If directory, add default entries
+    if (type == F_DIRECTORY) {
+        add_direntry(ip, ".", ip->inum);
+        add_direntry(ip, "..", parent->inum);
+    }
+
+    // Link to parent
+    add_direntry(parent, name, ip->inum);
+    iunlock(ip);
+
+    iunlock(parent);
+    iput(parent);
+    return ip;
+
+    fail:
+    iunlock(parent);
+    iput(parent);
+    return NULL;
+}
+
+static uint32_t sys_open(void) {
+    char *path = (char *) argraw(0);
+    unsigned int mode = (int) argraw(1);
+
+    if ((mode & O_WRONLY) && (mode & O_RDONLY)) return -1;
+
+    begin_op();
+
+    struct inode *ip;
+    if (mode & O_CREAT) {
+        // Returns the inode locked
+        ip = create(path, F_FILE);
+        if (ip == NULL) {
+            end_op();
+            return -1;
+        }
+    } else {
+        ip = namelookup(path);
+        if (ip == NULL) {
+            end_op();
+            return -1;
+        }
+        ilock(ip);
+        // directories shouldn't be writable
+        if (ip->d.type == F_DIRECTORY && mode != O_RDONLY) {
+            iunlock(ip);
+            iput(ip);
+            end_op();
+            return -1;
+        }
+    }
+
+    // Allocate a file
+    struct file *fp = filealloc();
+    if (fp == NULL) {
+        iunlock(ip);
+        iput(ip);
+        end_op();
+        return -1;
+    }
+
+    // Allocate a file descriptor
+    int fd = fdalloc(fp);
+    if (fd == -1) {
+        iunlock(ip);
+        iput(ip);
+        fileclose(fp);
+        end_op();
+        return -1;
+    }
+
+    // Populate file (references already incremented in filealloc())
+    fp->type = FD_INODE;
+    fp->offset = 0;
+    fp->readable = (char) (mode & O_RDWR) || ((mode & O_RDONLY) && !(mode & O_WRONLY));
+    fp->writable = (char) (mode & O_RDWR) || ((mode & O_WRONLY) && !(mode & O_RDONLY));
+    fp->ip = ip;
+
+    if (mode & O_TRUNC && ip->d.type == F_FILE) {
+        itrunc(ip);
+    }
+
+    iunlock(ip);
+    end_op();
+    return fd;
+}
+
+static uint32_t sys_mkdir(void) {
+    char *path = (char *) argraw(0);
+
+    begin_op();
+
+    // Try creating
+    struct inode *ip = create(path, F_DIRECTORY);
+    if (ip == NULL) {
+        end_op();
+        return -1;
+    }
+
+    iunlock(ip);
+    iput(ip);
+    end_op();
+    return 0;
+
+}
+
+static uint32_t sys_dup(void) {
+    // Duplicate the file and get a new file descriptor
+    int oldfd = (int) argraw(0);
+
+    struct file *oldfp = getfile(oldfd);
+    if (oldfp == NULL) return -1;
+
+    int fd = fdalloc(filedup(oldfp));
+    return fd;
+}
+
+static uint32_t sys_chdir(void) {
+    char *path = (char *) argraw(0);
+    begin_op();
+
+    struct inode *ip = namelookup(path);
+    ilock(ip);
+    if (ip->d.type != F_DIRECTORY) {
+        iunlock(ip);
+        iput(ip);
+        return -1;
+    }
+    iunlock(ip);
+
+    struct proc *p = getproc();
+    iput(p->cwd);
+
+    iput(ip);
+    end_op();
+    p->cwd = ip;
+    return 0;
+}
+
+static uint32_t sys_close(void) {
+    int fd = (int) argraw(0);
+    struct file *fp = getfile(fd);
+    if (fp == NULL) return -1;
+    fileclose(fp);
+    clearfd(fd);
+    return 0;
+}
+
+static int dirempty(struct inode *ip) {
+    struct direntry de;
+    for (int off = 2 * sizeof(struct direntry); off < ip->d.size; off += sizeof(struct direntry)) {
+        if (readi(ip, &de, off, sizeof(struct direntry)) != sizeof(struct direntry)) {
+            panic("dirempty");
+        }
+        if (de.inode != 0) return 0;
+    }
+    return 1;
+}
+
+static uint32_t sys_unlink(void) {
+    char *path = (char *) argraw(0);
+
+    begin_op();
+
+    // Parent dir
+    char name[DIRSIZE+1];
+    struct inode *dp = parentlookup(path, name);
+    if (dp == NULL) {
+        end_op();
+        return -1;
+    }
+    ilock(dp);
+
+    // Can't unlink . and ..
+    if (strncmp(name, ".", DIRSIZE+1) == 0 || strncmp(name, "..", DIRSIZE+1) == 0) {
+        iunlock(dp);
+        iput(dp);
+        end_op();
+        return -1;
+    }
+
+    // Target inode
+    uint32_t off;
+    struct inode *ip = dirlookup(dp, name, &off);
+    if (ip == NULL) {
+        iunlock(dp);
+        iput(dp);
+        end_op();
+        return -1;
+    }
+    ilock(ip);
+
+    if (ip->d.nlink < 1) panic("unlink");
+
+    // Can't delete non-empty directory
+    if (ip->d.type == F_DIRECTORY) {
+        if (!dirempty(ip)) {
+            iunlock(ip);
+            iput(ip);
+            iunlock(dp);
+            iput(dp);
+            end_op();
+            return -1;
+        }
+    }
+
+    // Remove from parent directory
+    struct direntry de = {0};
+    if (writei(dp, &de, off, sizeof(de)) != sizeof(de)) {
+        panic("sys_unlink");
+    }
+
+    // If this was the last entry
+    if (off + sizeof(de) >= dp->d.size) {
+        dp->d.size = off;
+        iupdate(dp);
+    }
+
+    // If this was a directory, we also delete the .. entry
+    if (ip->d.type == F_DIRECTORY) {
+        dp->d.nlink--;
+        iupdate(dp);
+    }
+
+    iunlock(dp);
+    iput(dp);
+
+    // Remove link
+    ip->d.nlink--;
+    iupdate(ip);
+    iunlock(ip);
+    iput(ip); // will see that nlink == 0 and delete the inode
+
+    end_op();
+    return 0;
+}
+
 static uint32_t (*syscalls[])(void) = {
     [SYS_sbrk]          = sys_sbrk,
     [SYS_exit]          = sys_exit,
-    [SYS_read]          = sys_read,
-    [SYS_write]         = sys_write,
     [SYS_termctl]       = sys_termctl,
-    [SYS_exec]          = sys_exec,
     [SYS_fork]          = sys_fork,
     [SYS_wait]          = sys_wait,
     [SYS_sleep]         = sys_sleep,
+
+    [SYS_read]          = sys_read,
+    [SYS_write]         = sys_write,
+    [SYS_exec]          = sys_exec,
+    [SYS_link]          = sys_link,
+    [SYS_open]          = sys_open,
+    [SYS_mkdir]         = sys_mkdir,
+    [SYS_dup]           = sys_dup,
+    [SYS_chdir]         = sys_chdir,
+    [SYS_close]         = sys_close,
+    [SYS_unlink]        = sys_unlink,
 };
 
 void syscall() {

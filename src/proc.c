@@ -113,8 +113,7 @@ void forkret(void) {
         fs_init();
         printk(KERNEL_MSG "File system initialized\n\r");
 
-        char name[DIRSIZE+1];
-        p->cwd = pathlookup("/", name);
+        p->cwd = namelookup("/");
 
         printk("(" ANSI_COLOR_YELLOW "yeast" ANSI_COLOR_RESET ") Entering normal operation\n\r");
         if (exec("/userprgm.out", 1, (char *[]){"/userprgm.out"}) == -1) {
@@ -189,8 +188,7 @@ int exec(char *path, int argc, char **argv) {
 
     // === Read file into memory ===
     begin_op();
-    char name[DIRSIZE+1];
-    if ((ip = pathlookup(path, name)) == NULL) {
+    if ((ip = namelookup(path)) == NULL) {
         printk(":(\n\r");
         end_op();
         return -1;
