@@ -1,8 +1,9 @@
 /*
  * Core file system code
+ * This is an amalgamation of a few layers
  *
  * Implemented in fs.c
- * - pclava 5 nov 2026
+ * - pclava 18 nov 2026
  */
 
 #pragma once
@@ -10,6 +11,7 @@
 
 #include "lock.h"
 
+/* === DISK LAYOUT === */
 
 #define BLOCKSIZE 512
 
@@ -32,6 +34,12 @@ extern struct superblock sb;
 #define NINDIRECT (BLOCKSIZE / sizeof(uint32_t)) // Number of blocks blocks kept in the inode's indirect block
 #define MAX_FILE (NDIRECT+NINDIRECT)
 
+void fs_init(void);             // Initialize file system (should be called in forkret right before exec'ing init)
+uint32_t balloc(void);          // Mark a sector as used in the bitmap
+void bfree(uint32_t bno);       // Mark a sector as free in the bitmap
+
+/* === INODES === */
+
 enum file_type {
     F_DIRECTORY = 1,
     F_FILE = 2,
@@ -45,6 +53,7 @@ struct dinode {
     uint32_t data[NDIRECT + 1];     // Direct data blocks. Last one points to the single indirect block
 };
 
+// In-memory inode structure
 struct inode {
     uint32_t inum;
     int32_t references;
@@ -60,11 +69,7 @@ struct inode {
 #define NINODE 50 // inodes in memory
 #define ROOTINUM 1
 
-void fs_init(void);
-uint32_t balloc(void);
-void bfree(uint32_t bno);
-
-/* DIRECTORY */
+/* === DIRECTORY === */
 
 #define DIRSIZE 15
 
@@ -81,7 +86,7 @@ struct inode *dirlookup(struct inode *dirp, char *name, uint32_t *poff);
 
 int add_direntry(struct inode *dirp, char *name, uint32_t ino); // adds an entry to the given directory
 
-/* PATHNAME */
+/* === PATHNAME === */
 
 // Both return an unlocked inode that has been called with iget()
 struct inode *namelookup(char *path);

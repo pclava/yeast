@@ -1,7 +1,20 @@
 /*
  * File Layer
+ * This is the highest kernel-level abstraction in the file system
+ * These functions handle the global file table.
+ * Per-process file tables are handled at the syscall-layer
  *
- * - pclava 14 nov 2026
+ * Providing a single wrapper for files, directories, pipes, and devices (the last two are not implemented)
+ * The functions exposed by this layer are:
+ * filealloc        gets a reference to a file structure in the table
+ * fileclose        drops the reference got by filealloc
+ * fileread         is a wrapper for the associated read function (i.e, readi for inodes)
+ * filewrite        cf. fileread
+ * filedup          gets another reference to an existing file
+ *
+ * Note it's still up to the programmer to find the inode and set it
+ *
+ * - pclava 18 nov 2026
  */
 
 #pragma once
