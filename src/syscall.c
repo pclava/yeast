@@ -346,13 +346,16 @@ static uint32_t sys_dup(void) {
     return fd;
 }
 
-static uint32_t sys_chdir(void) {
-    char *path = (char *) argraw(0);
+static uint32_t chdir(char *path) {
     begin_op();
-
     struct inode *ip = namelookup(path);
+    if (ip == NULL) {
+        printk("chdir: path not found\n\r");
+        return -1;
+    }
     ilock(ip);
     if (ip->d.type != F_DIRECTORY) {
+        printk("chdir: path %s is not a directory\n\r", path);
         iunlock(ip);
         iput(ip);
         return -1;
@@ -362,10 +365,14 @@ static uint32_t sys_chdir(void) {
     struct proc *p = getproc();
     iput(p->cwd);
 
-    iput(ip);
     end_op();
     p->cwd = ip;
     return 0;
+}
+
+static uint32_t sys_chdir(void) {
+    char *path = (char *) argraw(0);
+    return chdir(path);
 }
 
 static uint32_t sys_close(void) {
@@ -466,6 +473,53 @@ static uint32_t sys_unlink(void) {
     return 0;
 }
 
+static char *prepend(char *str, char *i) {
+    size_t n = strlen(str);
+    i -= n;
+    memcpy(i, str, n);
+    return i;
+}
+
+static uint32_t sys_getcwd(void) {
+    char *buf = (char *) argraw(0);
+
+    uint32_t cwdino = getproc()->cwd->inum;
+    uint32_t lastino = cwdino;
+
+    char path[128] = {0};
+    char *i = &path[127];
+
+    while (getproc()->cwd->inum != ROOTINUM) {
+        // Go inside .. entry
+        chdir("..");
+
+        if (lastino != cwdino) i = prepend("/", i);
+
+        struct inode *dp = getproc()->cwd;
+
+        // Look for entry pointing to lastino
+        ilock(dp);
+        struct direntry dirent;
+        for (uint32_t off = 0; off < dp->d.size; off += sizeof(struct direntry)) {
+            readi(dp, &dirent, off, sizeof(dirent));
+            if (dirent.inode == lastino) {
+                i = prepend(dirent.name, i);
+                break;
+            }
+        }
+        lastino = dp->inum;
+        iunlock(dp);
+    }
+
+    i = prepend("/", i);
+    size_t n = i-path;
+    memcpy(buf, i, n);
+
+    // Get back original cwd
+    getproc()->cwd = iget(cwdino);
+    return (uint32_t) buf;
+}
+
 static uint32_t (*syscalls[])(void) = {
     [SYS_sbrk]          = sys_sbrk,
     [SYS_exit]          = sys_exit,
@@ -484,6 +538,7 @@ static uint32_t (*syscalls[])(void) = {
     [SYS_chdir]         = sys_chdir,
     [SYS_close]         = sys_close,
     [SYS_unlink]        = sys_unlink,
+    [SYS_getcwd]        = sys_getcwd,
 };
 
 void syscall() {

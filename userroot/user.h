@@ -23,6 +23,7 @@ int dup(int oldfd);
 int chdir(const char *path);
 int close(int fd);
 int unlink(const char *path);
+char *getcwd(char *buf);
 
 // === ULIB (ulib.c) ===
 char *strcpy(char *, const char *);

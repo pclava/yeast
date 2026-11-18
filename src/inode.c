@@ -8,6 +8,7 @@
 #include "memlayout.h"
 #include "string.h"
 #include "printk.h"
+#include "vga.h"
 
 struct inode itable[NINODE];
 
@@ -263,6 +264,7 @@ struct inode *iget(uint32_t inum) {
     if (empty != NULL) {
         empty->inum = inum;
         empty->references = 1;
+        empty->valid = 0; // mark invalid so we know to read from disk!!!
         release();
         return empty;
     }

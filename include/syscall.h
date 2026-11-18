@@ -32,7 +32,8 @@
 #define SYS_chdir       27
 #define SYS_close       28
 #define SYS_unlink      29
-#define SYSDOMAIN       29 // largest syscall and number of syscalls
+#define SYS_getcwd      30
+#define SYSDOMAIN       30 // largest syscall and number of syscalls
 
 // Execute the syscall based on the contents of the trapframe's $v0 and argument registers
 // Called by usertrap() in trap.c

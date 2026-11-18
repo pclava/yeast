@@ -119,3 +119,10 @@ unlink:
     li      $v0, _SYSUNLINK
     syscall
     jr      $ra
+
+# char *getcwd(char *buf)
+    .globl getcwd
+getcwd:
+    li      $v0, _SYSGETCWD
+    syscall
+    jr      $ra

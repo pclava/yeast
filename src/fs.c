@@ -9,6 +9,7 @@
 #include "string.h"
 #include "file.h"
 #include "printk.h"
+#include "vga.h"
 
 struct superblock sb = {0};
 
@@ -159,9 +160,7 @@ static struct inode *pathlookup(char *path, char *name, int parent) {
 
     if (*path == '/') cur = iget(ROOTINUM);
     else cur = idup(getproc()->cwd);
-
-    ilock(cur);
-    iunlock(cur);
+    // printk("pathlookup: cwd %d @ 0x%x\n\r", cur->inum, cur);
 
     while ((path = get_name(path, name)) != NULL) {
         ilock(cur);

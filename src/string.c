@@ -75,3 +75,14 @@ size_t strlen(const char *str) {
         ;
     return (s - str);
 }
+
+size_t strnlen(const char *s, size_t maxlen) {
+    const char *p = s;
+
+    while (maxlen > 0 && *p != '\0') {
+        p++;
+        maxlen--;
+    }
+
+    return (size_t)(p - s);
+}
