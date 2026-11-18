@@ -11,25 +11,11 @@ void ls();
 int main() {
 
     // open stdin,out,err
-    int fd0 = open("console", O_RDWR | O_CREAT);
+    int fd0 = open("terminal", O_RDWR | O_CREAT);
     int fd1 = dup(0);
     int fd2 = dup(0);
 
     intro();
-
-    int pid = fork();
-    if (pid == 0) {
-        int x = fork();
-        if (x == 0) {
-            while (1) {}
-        }
-        while (1) {}
-    }
-    // else {
-    //     unsigned int status;
-    //     unsigned char child = wait(&status);
-    //     printf("> child %u exited with code %u\n\r", child, status);
-    // }
 
     char buf[128];
     while (1) {

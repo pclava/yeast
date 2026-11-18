@@ -145,7 +145,7 @@ static uint32_t sys_exec(void) {
     int argc = 0;
     while (argv[argc] != NULL) argc++;
 
-    return exec(path, argc, argv);
+    return kexec(path, argc, argv);
 }
 
 static uint32_t sys_link(void) {

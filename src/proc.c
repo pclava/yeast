@@ -115,8 +115,8 @@ void forkret(void) {
 
         p->cwd = namelookup("/");
 
-        printk("(" ANSI_COLOR_YELLOW "yeast" ANSI_COLOR_RESET ") Entering normal operation\n\r");
-        if (exec("/userprgm.out", 1, (char *[]){"/userprgm.out"}) == -1) {
+        printk(KERNEL_MSG "Entering normal operation\n\r");
+        if (kexec("/init", 1, (char *[]){"/init"}) == -1) {
             panic("could not exec");
         }
     }
@@ -181,7 +181,7 @@ void wakeup(const void *chan) {
 }
 
 // Note: exec'd process keeps its open files
-int exec(char *path, int argc, char **argv) {
+int kexec(char *path, int argc, char **argv) {
     struct proc *p = getproc();
     struct inode *ip = NULL;
     struct mof_header hdr;
@@ -197,11 +197,11 @@ int exec(char *path, int argc, char **argv) {
 
     // Read header
     if (readi(ip, &hdr, 0, sizeof(struct mof_header)) != sizeof(struct mof_header)) {
-        printk("exec: failed to read header\n\r");
+        printk("kexec: failed to read header\n\r");
         goto fail;
     }
     if (!mof_is_valid(&hdr)) {
-        printk("exec: invalid executable\n\r");
+        printk("kexec: invalid executable\n\r");
         goto fail;
     }
 

@@ -105,7 +105,7 @@ void sched(struct proc *p);
 
 // Called once:
 struct proc * pfind(void);                      // Finds a slot for a new process. Returns pointer to process slot, or NULL on failure. Sets the PID itself!
-int exec(char *path, int argc, char **argv);    // Loads and runs an executable file from disk
+int kexec(char *path, int argc, char **argv);    // Loads and runs an executable file from disk
 void forkret(void);                             // A process's first scheduling ends up here. On process initialization, context $ra should be set here
 void first_proc(void);                          // Creates the first process
 void sleep_prepare(void *chan);                 // Sets the process's channel

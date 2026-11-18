@@ -252,7 +252,7 @@ void tlb_load_miss() {
     }
     else {
         entry.page1 = pte;
-        pte_decode(&entry.page1, pte_lookup(asid, vpn-0x1000));
+        pte_decode(&entry.page0, pte_lookup(asid, vpn-0x1000));
     }
     tlb_write_entry(index, &entry);
 }
