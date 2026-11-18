@@ -2,8 +2,27 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <dirent.h>
 
 #include "include/fs.h"
+
+/*
+ * This is a fairly sloppily-coded program to create a yeast-readable disk
+ * from files on the host machine. It's largely based on the xv6 version
+ *
+ * Usage:
+ *  $ mkfs <disk image name> <user root directory>
+ *
+ * i.e.
+ *  $ mkfs disk.img userroot
+ * creates a disk image where userroot is treated as the root directory on yeast
+ * That is, it recursively traverses all of userroot, creating a file system rooted at userroot
+ *
+ * NOTE: This only works on UNIX systems like MacOS and Linux. Maybe
+ * I'll eventually write a Windows version, but no promises.
+ *
+ * - pclava 17 nov 2026
+ */
 
 typedef unsigned int uint;
 
@@ -24,6 +43,7 @@ char zeroblock[BLOCKSIZE] = {0};
 struct superblock sb;
 FILE *diskimg;
 char *diskname;
+char *userroot;
 uint i_rootdir;
 
 // stolen from xv6
@@ -89,7 +109,6 @@ void winode(uint i, struct dinode *dinode) {
 
     // Write dinode
     dbuf[offset] = *dinode;
-    printf("writing size: %u\n", dbuf[offset].size);
 
     // Write sector again
     wsect(sector, buf);
@@ -118,7 +137,6 @@ void write_to_inode(uint i, void *data, size_t bytes) {
     rinode(i, &dinode);
 
     uint boffset = dinode.size;
-    printf("starting boffset: %u\n", boffset);
 
     // Write data
     while (bytes > 0) {
@@ -132,7 +150,6 @@ void write_to_inode(uint i, void *data, size_t bytes) {
             // Get sector, and allocate if it doesn't exist
             if (xint(dinode.data[file_block]) == 0) {
                 dinode.data[file_block] = xint(freeblock++);
-                printf("Allocated sector %d\n", dinode.data[file_block]);
             }
             sect = xint(dinode.data[file_block]);
         }
@@ -170,7 +187,6 @@ void write_to_inode(uint i, void *data, size_t bytes) {
 
     // Update inode
     dinode.size = boffset;
-    printf("dinode size: %u\n", dinode.size);
     winode(i, &dinode);
 }
 
@@ -205,22 +221,23 @@ uint allocate_inode(uint32_t type) {
 
 // Adds a directory entry to a directory inode
 // This points to another inode, and has the given name
-void add_direntry(uint i_parent, char *name, uint i_child) {
+// Doesn't check that the parent is a directory!
+void mkfs_add_direntry(uint i_from, char *name, uint i_to) {
     struct direntry direntry = {0};
-    direntry.inode = xint(i_child);
+    direntry.inode = xint(i_to);
     strncpy(direntry.name, name, DIRSIZE+1);
-    write_to_inode(i_parent, &direntry, sizeof(direntry));
+    write_to_inode(i_from, &direntry, sizeof(direntry));
 }
 
 void dsk_init(void) {
     assert((BLOCKSIZE % sizeof(struct dinode)) == 0);
     char blockbuf[BLOCKSIZE];
 
-    // 1. Create superblock
+    // Create superblock
     create_superblock();
     printf("Created superblock\n");
 
-    // 2. Open and initialize output file
+    // Open and initialize output file
     diskimg = fopen(diskname, "wb+");
     assert(diskimg != NULL);
     printf("Opened disk.img\n");
@@ -230,35 +247,54 @@ void dsk_init(void) {
         wsect(i, zeroblock);
     }
 
-    // 3. Write superblock
+    // Write superblock
     memset(blockbuf, 0, BLOCKSIZE);
     memcpy(blockbuf, &sb, sizeof(struct superblock));
     wsect(1, blockbuf);
     printf("Wrote superblock\n");
-    printf("sb.inodestart: %u\n", sb.inodestart);
 
-    // 4. Create root directory inode
+    // Create root directory inode
     i_rootdir = allocate_inode(F_DIRECTORY);
     assert(i_rootdir == ROOTINUM);
     printf("Created rootdir\n");
-
-    // Add . and ..
-    add_direntry(i_rootdir, ".", i_rootdir);
-    add_direntry(i_rootdir, "..", i_rootdir);
-    printf("Added direntries\n");
 }
 
-void add_file(char *filename) {
-    printf("\nAdding file %s\n", filename);
-    FILE *f = fopen(filename, "rb");
-    assert(f != NULL);
-
-    // TODO: Check size
+uint add_dir(char *path, uint dirno) {
+    printf("Adding directory %s\n", path);
 
     // Get name on its own
-    char *name = strrchr(filename, '/');
+    char *name = strrchr(path, '/');
     if (name == NULL) {
-        name = filename;
+        name = path;
+    } else {
+        name++;
+    }
+
+    uint inode = allocate_inode(F_DIRECTORY);
+    mkfs_add_direntry(dirno, name, inode);
+
+    return inode;
+}
+
+// Adds a file to the directory inum and returns the file's inum
+uint add_file(char *path, uint dirno) {
+    printf("Adding file %s\n", path);
+    FILE *f = fopen(path, "rb");
+    assert(f != NULL);
+
+    fseek(f, 0, SEEK_END);
+    unsigned long size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    if (size > MAX_FILE * BLOCKSIZE) {
+        fclose(f);
+        fprintf(stderr, "file %s too big\n\r", path);
+        return -1;
+    }
+
+    // Get name on its own
+    char *name = strrchr(path, '/');
+    if (name == NULL) {
+        name = path;
     } else {
         name++;
     }
@@ -270,28 +306,19 @@ void add_file(char *filename) {
 
     // Create inode
     uint inode = allocate_inode(F_FILE);
-    printf("Placing %s at inode %u\n", name, inode);
 
     // Add to root directory
-    // TODO: generalize
-    printf("Writing direntry\n");
-    add_direntry(i_rootdir, name, inode);
+    mkfs_add_direntry(dirno, name, inode);
 
     // Write file one sector at a time to the inode
     char buf[BLOCKSIZE];
     uint n;
-    printf("writing file\n");
     while ((n = fread(buf, 1, BLOCKSIZE, f)) > 0) {
         write_to_inode(inode, buf, n);
     }
-    printf("finished writing\n");
-
-    struct dinode test;
-    rinode(inode, &test);
-    printf("final size: %d\n", test.size);
 
     fclose(f);
-    printf("\n");
+    return inode;
 }
 
 // Writes the bitmap after disk init
@@ -310,22 +337,64 @@ void write_bitmap(uint blocksused) {
     wsect(sb.bitmapstart, buf);
 }
 
+// Recursively loads the files in the directory at path
+// Placing them in the inode ino_here
+// which is a child of ino_parent
+void load_dir(char *path, uint ino_here, uint ino_parent) {
+    DIR *dir = opendir(path);
+    if (dir == NULL) {
+        fprintf(stderr, "can't open directory %s\n", path);
+        exit(1);
+    }
+
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL) {
+
+        // Add default dot-entries
+        if (strcmp(entry->d_name, ".") == 0) {
+            mkfs_add_direntry(ino_here, ".", ino_here);
+            continue;
+        }
+
+        if (strcmp(entry->d_name, "..") == 0) {
+            mkfs_add_direntry(ino_here, "..", ino_parent);
+            continue;
+        }
+
+        // Construct full path (relative to calling location, that is starting with userroot/ or whatever the root dir is)
+        char fullpath[1024];
+        snprintf(fullpath, sizeof(fullpath), "%s/%s", path, entry->d_name);
+
+        if (entry->d_type == DT_DIR) {
+            // Add directory
+            uint ino = add_dir(entry->d_name, ino_here);
+
+            // Recurse, using the name of the directory we just read and the new inode number
+            load_dir(fullpath, ino, ino_here);
+        }
+        else if (entry->d_type == DT_REG) {
+            add_file(fullpath, ino_here);
+        }
+    }
+}
+
 int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        fprintf(stderr, "mkfs (name).img files...");
-        exit(2);
+    if (argc != 3) {
+        fprintf(stderr, "mkfs (name).img rootdir");
+        exit(1);
     }
 
     diskname = argv[1];
+    userroot = argv[2];
 
     dsk_init();
 
-    // 5. Add files to root
-    for (int i = 2; i < argc; i++) {
-        add_file(argv[i]);
-    }
+    // Add files. This also takes care of the . and .. entries
+    load_dir(userroot, i_rootdir, i_rootdir);
+
     printf("Wrote files\n");
 
+    // Write bitmap
     write_bitmap(freeblock);
     printf("Wrote bitmap\n");
 

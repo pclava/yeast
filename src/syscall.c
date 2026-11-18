@@ -121,7 +121,6 @@ static uint32_t sys_read(void) {
     return fileread(file, buffer, n);
 }
 
-// TODO: rewrite
 static uint32_t sys_write(void) {
     const int fd = (int) argraw(0);
     void *buffer = (void *)argraw(1);
