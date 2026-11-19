@@ -13,7 +13,7 @@ To build, you need:
 - A clang instance supporting the **mipsel** target (MIPS little-endian). The default in the Makefile is currently the one on my own machine. To build, set `CC` to your own compiler when you run `make` (eg. `make CC=clang` if your native clang instance supports mipsel).
   - `clang -print-targets | grep mipsel` to check if your clang instance supports mipsel
 - My [assembler and linker](https://github.com/pclava/MIPSAssembler) with the names `MIPSAssembler` and `MIPSLinker` in the same path as `build.sh`
-- The kernel version of [emulator](https://github.com/pclava/MIPSEmulator) with the name `MIPSEmulator`
+- The **kernel** version of my [emulator](https://github.com/pclava/MIPSEmulator) with the name `MIPSEmulator`
 
 The Makefile compiles the files into MIPS assembly, then calls `build.sh`. This script runs the assembler and links to create executables for the kernel (in `kernel.out`) and all user programs. These are in `/userroot`, prefixed with `_` to avoid confusion with host programs. The prefix is stripped during loading.
 
