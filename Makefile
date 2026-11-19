@@ -84,3 +84,4 @@ clean:
 	rm -f $(KER_ASM_DIR)/*.s
 	rm -f $(USR_ASM_DIR)/*.s
 	rm -f mkfs.o
+	rm -f kernel.out

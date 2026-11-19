@@ -40,7 +40,7 @@ for file in "${ks_files[@]}"; do
   ko_files+=("${file%.s}.o")
 done
 
-./MIPSAssembler "${ks_files[@]}"
+./MIPSAssembler -p pseudo.asm "${ks_files[@]}"
 ./MIPSLinker -c -s _entry -o kernel.out "${ko_files[@]}"
 
 
@@ -57,7 +57,7 @@ ulib_o=()
 for file in "${ulib_s[@]}"; do
   ulib_o+=("${file%.s}.o")
 done
-./MIPSAssembler "${ulib_s[@]}"
+./MIPSAssembler -p pseudo.asm "${ulib_s[@]}"
 
 # Assemble program files
 usrc_s=(
@@ -68,7 +68,7 @@ usrc_o=()
 for file in "${usrc_s[@]}"; do
   usrc_o+=("${file%.s}.o")
 done
-./MIPSAssembler "${usrc_s[@]}"
+./MIPSAssembler -p pseudo.asm "${usrc_s[@]}"
 
 # Build programs
 for file in "${usrc_o[@]}"; do
