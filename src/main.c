@@ -1,7 +1,5 @@
-#include "main.h"
-
 #include <stdint.h>
-
+#include "main.h"
 #include "tty.h"
 #include "printk.h"
 #include "proc.h"
@@ -9,6 +7,8 @@
 #include "kalloc.h"
 #include "lock.h"
 #include "vga.h"
+
+#include "inode.h"
 
 struct cpu cpu = {0};
 
@@ -36,15 +36,12 @@ static void kernel_main(void)
     printk(KERNEL_MSG "Physical memory initialized\n\r");
     procinit();
     printk(KERNEL_MSG "Process table initialized\n\r");
-
-    pop_off(); // Enable interrupts, but they won't come through until userret because EXL is on
-
-    // Initialize first process
     first_proc();
+    printk(KERNEL_MSG "First process initialized\n\r");
 
-    printk("(" ANSI_COLOR_YELLOW "yeast" ANSI_COLOR_RESET ") Entering normal operation\n\r");
+    pop_off();
 
-    // Enable terminal press echo
+    // Enable terminal key echo
     term_echo(1);
 
     // Jump to scheduler

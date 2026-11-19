@@ -167,7 +167,6 @@ int devintr(void) {
         case KEY_DOWN:
             intr_keydown();
             return 1;
-            break;
         case KEY_UP:
             intr_keyup();
             return 1;

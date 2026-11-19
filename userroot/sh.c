@@ -1,27 +1,22 @@
 
+#include "file.h"
 #include "user.h"
-#include "vga.h"
+#include "fs.h"
 
 void intro();
 void colors();
 void yeast();
+void ls();
+void cd(char *path);
 
 int main() {
 
-    intro();
+    // open stdin,out,err
+    int fd0 = open("terminal", O_RDWR | O_CREAT);
+    int fd1 = dup(0);
+    int fd2 = dup(0);
 
-    int pid = fork();
-    if (pid == 0) {
-        printf("Sleeping...");
-        sleep(2000);
-        printf(" awake!\n\r");
-        exit(4312);
-    }
-    else {
-        unsigned int status;
-        unsigned char child = wait(&status);
-        printf("> child %u exited with code %u\n\r", child, status);
-    }
+    intro();
 
     char buf[128];
     while (1) {
@@ -44,6 +39,22 @@ int main() {
         }
         else if (strcmp(buf, "yeast") == 0) {
             yeast();
+        }
+        else if (strcmp(buf, "ls") == 0) {
+            ls();
+        }
+        else if (buf[0] == 'c' && buf[1] == 'd' && buf[2] == ' ') {
+            char *c = buf;
+            while (*c != ' ' && *c != '\0') {
+                c++;
+            }
+            if (*c == '\0') printf("no path\n\r");
+            else cd(++c);
+        }
+        else if (strcmp(buf, "cwd") == 0) {
+            char tmp[128];
+            getcwd(tmp);
+            printf("%s\n\r", tmp);
         }
         else if (buf[0] == '\0') {
             continue;
@@ -88,4 +99,26 @@ void intro() {
         printf(" ");
     }
     printf(ANSI_COLOR_RESET "\n\r");
+}
+
+void ls() {
+    printf("name (inode)\n\r");
+    int fd = open(".", O_RDONLY);
+
+    struct direntry de;
+    while (read(fd, &de, sizeof(de)) == sizeof(de)) {
+        if (de.inode == 0) continue;
+        printf("%s (%d)\n\r", de.name, de.inode);
+    }
+
+    close(fd);
+}
+
+void cd(char *path) {
+    if (*path == '\0') {
+        printf("cd: no path\n\r");
+        return;
+    }
+
+    chdir(path);
 }

@@ -4,6 +4,7 @@
 #include "printk.h"
 #include <stdarg.h>
 #include "cpu.h"
+#include "lock.h"
 #include "tty.h"
 #include "vga.h"
 
@@ -120,11 +121,11 @@ printk(char *fmt, ...)
 
 void
 panic(char *str) {
-  int_off();
   // term_clear(0);
   term_setcolor(vga_entry_color(VGA_COLOR_RED, VGA_COLOR_BLACK));
   printk("kernel panic:\n\r");
   printk("%s", str);
+  acquire(); // TODO: for some reason, doing int_off() doesn't work, but push_off() or acquire() does. these should do the same thing. investigate!
   for (;;)
     ;
 }

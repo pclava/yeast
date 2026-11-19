@@ -4,7 +4,9 @@
 #include "memlayout.h"
 #include "cpu.h"
 #include "kalloc.h"
+#include "lock.h"
 #include "main.h"
+#include "string.h"
 #include "printk.h"
 #include "vga.h"
 
@@ -59,19 +61,10 @@ void alloc_page(struct PTE *pte, const unsigned char asid, const uint32_t vpn) {
     pte_write(pte, asid, vpn);
 
     // Increment process page count
-    struct proc *p = getproc();
+    struct proc *p = &proctable[asid];
     p->pages++;
 
     // printk(KERNEL_MSG "allocated VPN 0x%x of process %d @ PFN 0x%x\n\r", vpn, asid, pte->PFN);
-}
-
-// Copies a given number of words between two word-aligned addresses
-static uint32_t * memcpy_aligned(const uint32_t *src, uint32_t *dst, size_t n) {
-    uint32_t *dest = dst;
-    while (n--) {
-        *dest++ = *src++;
-    }
-    return dst;
 }
 
 // Copies the frame at src (PFN) to dst (PFN)
@@ -80,7 +73,7 @@ static void copy_frame(uint32_t src, uint32_t dst) {
     src += UMEM_ALIASDIFF;
     dst += UMEM_ALIASDIFF;
 
-    memcpy_aligned((uint32_t *)src, (uint32_t *)dst, PAGE_SIZE/sizeof(uint32_t));
+    memcpy_aligned((uint32_t *)dst, (uint32_t *)src, PAGE_SIZE/sizeof(uint32_t));
 }
 
 void vm_copy(struct proc *old, struct proc *new) {
@@ -88,7 +81,6 @@ void vm_copy(struct proc *old, struct proc *new) {
     const unsigned char asid_new = new->PID;
 
     const struct page_table *pt_old = &page_tables[asid_old];
-    const struct page_table *pt_new = &page_tables[asid_new];
 
     unsigned int to_copy = old->pages;  // Number of pages used by old process that still need to be copied
 
@@ -98,6 +90,7 @@ void vm_copy(struct proc *old, struct proc *new) {
     pte_decode(&pte_old, *p);
 
     int i = 0;
+    acquire();
     while (pte_old.valid && to_copy) {
         // Allocate new page
         struct PTE pte_new;
@@ -149,6 +142,7 @@ void vm_copy(struct proc *old, struct proc *new) {
         i++;
         pte_decode(&pte_old, *--p); // stack grows down!
     }
+    release();
 
     if (to_copy != 0) {
         panic("vm_copy");
@@ -258,7 +252,7 @@ void tlb_load_miss() {
     }
     else {
         entry.page1 = pte;
-        pte_decode(&entry.page1, pte_lookup(asid, vpn-0x1000));
+        pte_decode(&entry.page0, pte_lookup(asid, vpn-0x1000));
     }
     tlb_write_entry(index, &entry);
 }

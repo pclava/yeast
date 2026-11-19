@@ -36,8 +36,10 @@ void release(void); // currently just an alias for pop_off
  */
 
 struct sleeplock {
-    bool locked;
+    unsigned int locked;
+    unsigned int pid;
 };
 
 void acquire_sleep(struct sleeplock *s); // goes to sleep on the given sleeplock
 void release_sleep(struct sleeplock *s);
+int holding_sleep(struct sleeplock *s);

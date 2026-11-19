@@ -8,6 +8,8 @@
 #pragma once
 #include <stdint.h>
 
+#include "file.h"
+
 
 // Kernel thread
 struct context {
@@ -79,6 +81,8 @@ struct proc {
     void *pbrk;                     // Program break (virtual address)
     unsigned char parent;           // Parent process ID
     unsigned int pages;             // Pages currently in use
+    struct inode *cwd;              // Current working directory inode
+    struct file *ofiles[NOPEN];     // Open files
     uint32_t code;                  // Exit code
 };
 
@@ -100,16 +104,16 @@ void scheduler(void);
 void sched(struct proc *p);
 
 // Called once:
-struct proc * pfind(void);              // Finds a slot for a new process. Returns pointer to process slot, or NULL on failure. Sets the PID itself!
-void exec(int arg);                     // Loads an executable file from disk
-void forkret(void);                     // A process's first scheduling ends up here. On process initialization, context $ra should be set here
-void first_proc(void);                  // Creates the first process
-void sleep_prepare(void *chan);         // Sets the process's channel
-void sleep();                           // Puts a process to sleep on the channel set with sleep_prepare. Must have called sleep_prepare and must be awoken with wakeup()
-void wakeup(const void *chan);          // Wakes up any process sleeping on the given channel
-uint32_t fork(void);                    // Creates new process, copying parent, returns ID of child
-void exit(uint32_t code);               // Closes a process with a code. Stays in proctable until collected with wait()
-uint32_t wait(uint32_t *code);          // Waits until a child of this process calls exit(), and collects its status, returning its PID, or -1 if no children
+struct proc * pfind(void);                      // Finds a slot for a new process. Returns pointer to process slot, or NULL on failure. Sets the PID itself!
+int kexec(char *path, int argc, char **argv);    // Loads and runs an executable file from disk
+void forkret(void);                             // A process's first scheduling ends up here. On process initialization, context $ra should be set here
+void first_proc(void);                          // Creates the first process
+void sleep_prepare(void *chan);                 // Sets the process's channel
+void sleep();                                   // Puts a process to sleep on the channel set with sleep_prepare. Must have called sleep_prepare and must be awoken with wakeup()
+void wakeup(const void *chan);                  // Wakes up any process sleeping on the given channel
+uint32_t fork(void);                            // Creates new process, copying parent, returns ID of child
+void exit(uint32_t code);                       // Closes a process with a code. Stays in proctable until collected with wait()
+uint32_t wait(uint32_t *code);                  // Waits until a child of this process calls exit(), and collects its status, returning its PID, or -1 if no children
 
 // Called repeatedly:
 struct proc * getproc(void);            // Returns pointer to currently running process

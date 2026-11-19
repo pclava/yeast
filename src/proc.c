@@ -1,42 +1,20 @@
 #include "proc.h"
 #include <stddef.h>
 #include "cpu.h"
+#include "fs.h"
+#include "inode.h"
 #include "kalloc.h"
 #include "main.h"
 #include "lock.h"
+#include "log.h"
 #include "memlayout.h"
 #include "printk.h"
+#include "string.h"
+#include "mof.h"
 #include "vm.h"
 #include "trap.h"
 
 struct proc proctable[NPROC];
-
-static void * memset (void *dest, register int val, register size_t len)
-{
-    register unsigned char *ptr = (unsigned char*)dest;
-    while (len-- > 0)
-        *ptr++ = val;
-    return dest;
-}
-
-void * memcpy(void *vdst, const void *vsrc, int n)
-{
-    char *dst;
-    const char *src;
-
-    dst = vdst;
-    src = vsrc;
-    if (src > dst) {
-        while (n-- > 0)
-            *dst++ = *src++;
-    } else {
-        dst += n;
-        src += n;
-        while (n-- > 0)
-            *--dst = *--src;
-    }
-    return vdst;
-}
 
 struct proc * getproc(void) {
     // int_off();
@@ -46,10 +24,11 @@ struct proc * getproc(void) {
 }
 
 void procinit(void) {
-    struct proc *p;
+    memset(proctable, 0, sizeof(proctable));
     unsigned int index = 0;
-    for (p = proctable; p < &proctable[NPROC]; p++) {
+    for (struct proc *p = proctable; p < &proctable[NPROC]; p++) {
         p->state = UNUSED;
+        p->PID = index;
         index++;
     }
 }
@@ -120,16 +99,26 @@ void switch_to(struct proc *p) {
     // When process switches back to kernel (say, on yield() or sleep()), we end up here
 }
 
+int first = 1;
 void forkret(void) {
-
+    release();
     struct proc *p = getproc();
-    if (p->PID == 0) {
+    if (first) {
         // First process! Was not created by a fork, and thus has not been exec'd yet
+        first = 0;
 
         // Initialize page table
         pt_init(0);
 
-        exec(69420);
+        fs_init();
+        printk(KERNEL_MSG "File system initialized\n\r");
+
+        p->cwd = namelookup("/");
+
+        printk(KERNEL_MSG "Entering normal operation\n\r");
+        if (kexec("/init", 1, (char *[]){"/init"}) == -1) {
+            panic("could not exec");
+        }
     }
 
     prepare_return();
@@ -191,50 +180,86 @@ void wakeup(const void *chan) {
     }
 }
 
-static uint32_t *file_reg = (uint32_t *)FILE_REG;
-static uint8_t *file_buffer = (uint8_t *)FILE_BUFFER;
-
-// Loads a user program
-void exec(int arg) {
-    // TODO: this is mostly wrong
-    // Write all of user text and user data
+// Note: exec'd process keeps its open files
+int kexec(char *path, int argc, char **argv) {
     struct proc *p = getproc();
+    struct inode *ip = NULL;
+    struct mof_header hdr;
 
-    *file_reg &= ~(0b111);
-    uint8_t *start = (uint8_t *)UTEXT0;
-    int count = 0;
-    while ((*file_reg & 0b100) == 0) {
-        // Ask for text
-        *file_reg |= 0b01;
-        // Text should be in file_buffer
-        for (int offset = 0; offset < PAGE_SIZE; offset++) {
-            start[offset] = file_buffer[offset];
-        }
-        start += PAGE_SIZE;
-        count++;
+    // === Read file into memory ===
+    begin_op();
+    if ((ip = namelookup(path)) == NULL) {
+        printk(":(\n\r");
+        end_op();
+        return -1;
+    }
+    ilock(ip);
+
+    // Read header
+    if (readi(ip, &hdr, 0, sizeof(struct mof_header)) != sizeof(struct mof_header)) {
+        printk("kexec: failed to read header\n\r");
+        goto fail;
+    }
+    if (!mof_is_valid(&hdr)) {
+        printk("kexec: invalid executable\n\r");
+        goto fail;
     }
 
-    *file_reg &= ~(0b111);
-    start = (uint8_t *)UDATA0;
-    while ((*file_reg & 0b100) == 0) {
-        // Ask for data
-        *file_reg |= 0b11;
-        // Text should be in file_buffer
-        for (int offset = 0; offset < PAGE_SIZE; offset++) {
-            start[offset] = file_buffer[offset];
-        }
-        start += PAGE_SIZE;
-        count++;
+    // Read text
+    void *text = (void *)UTEXT0;
+    if (readi(ip, text, MOF_TXTOFF, hdr.text) != hdr.text) {
+        goto fail;
     }
 
-    // Place var in stack
-    *(uint32_t *)STACK0 = arg;
-    struct PTE pte;
-    pte_decode(&pte, pte_lookup(0, STACK0));
+    // Read data
+    void *data = (void *)UDATA0;
+    if (readi(ip, data, MOF_DTAOFF(&hdr), hdr.data) != hdr.data) {
+        printk(":(\n\r");
+        goto fail;
+    }
 
-    // Setup trapframe
+    iunlock(ip);
+    iput(ip);
+    end_op();
+
+    // === Place args in stack ===
+
+    // Bytes
+    uint32_t n_fixed = 4+4*argc;
+    uint32_t n_strings = 0;
+    for (int i = 0; i < argc; i++) {
+        n_strings += 1 + strlen(argv[i]);
+    }
+    uint32_t size = n_fixed + n_strings;
+    while (size % 4 != 0) size++;
+
+    // Pointers
+    void *start = (void*)(STACKTOP - size); // where stack pointer will be
+    char *strings_start = start + n_fixed;  // where the strings start (going up)
+    uint32_t *fixed = (uint32_t *)start;
+
+    // Write argc
+    fixed[0] = argc;
+    // Copy strings
+    for (int i = 0; i < argc; i++) {
+        // Copy into strings_start
+        size_t n = 1 + strlen(argv[i]);
+        memcpy(strings_start, argv[i], n);
+        // Write pointer
+        fixed[i+1] = (uint32_t) strings_start;
+        // Increment
+        strings_start += n;
+    }
+
+    // === Prepare to execute ===
     p->trapframe->pc = UTEXT0;
-    p->trapframe->sp = STACK0-4; // 1 argument has been placed already
+    p->trapframe->sp = (uint32_t) start;
+    return 0;
+
+    fail:
+    iunlock(ip);
+    iput(ip);
+    return -1;
 }
 
 uint32_t fork(void) {
@@ -268,6 +293,15 @@ uint32_t fork(void) {
     np->pbrk = (void *)HEAP0;
     np->parent = p->PID;
     np->pages = p->pages;
+    np->cwd = idup(p->cwd);
+
+    // Duplicate file references
+    memset(&np->ofiles, 0, sizeof(np->ofiles));
+    for (int i = 0; i < NOPEN; i++) {
+        if (p->ofiles[i]) {
+            np->ofiles[i] = filedup(p->ofiles[i]);
+        }
+    }
 
     // Return pid to parent
     return pid;
