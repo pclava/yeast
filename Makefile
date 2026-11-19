@@ -1,8 +1,13 @@
-# Use Homebrew's upstream Clang
-CC = /opt/homebrew/opt/llvm/bin/clang
+# Unfortunate caveat: a lot of work is done to shape the compiler's output
+# into something readable by the assembler
+# and this is thus not guaranteed to work on any other compiler :(
+
+ifndef CC_OVERRIDE_CHECK
+	CC = /opt/homebrew/opt/llvm/bin/clang
+endif
 TARGET = mipsel-linux-gnu
 
-# Stripped down flags: disables PIC, abicalls, CFI stack unwinding, debug, and address signatures
+# Idk what half these flags do but getting them right was a delicate process of fine tuning
 CFLAGS = -S -target $(TARGET) -march=mips32r3 -O2 -g0 \
          -fno-PIC -mno-abicalls \
          -mno-gpopt -G0 \
@@ -15,11 +20,9 @@ KER_ASM_DIR = asm/kernel
 USR_SRC_DIR = userroot
 USR_ASM_DIR = asm/user
 
-# Find all .c files inside the src/ directory
 KER_SRCS = $(wildcard $(KER_SRC_DIR)/*.c)
 USR_SRCS = $(wildcard $(USR_SRC_DIR)/*.c)
 
-# Map src/*.c paths to asm/*.s paths
 KER_ASM_FILES = $(patsubst $(KER_SRC_DIR)/%.c, $(KER_ASM_DIR)/%.s, $(KER_SRCS))
 USR_ASM_FILES = $(patsubst $(USR_SRC_DIR)/%.c, $(USR_ASM_DIR)/%.s, $(USR_SRCS))
 
@@ -32,9 +35,11 @@ mkfs: mkfs.o
 mkfs.o: mkfs.c
 	$(CC) -Wall -Wextra -I. -c mkfs.c -o mkfs.o
 
+# Note: the sed command is a little outrageous, I know.
+# The compiler I'm using was not meant for my assembler
+# and the compiler's output needs to be shaped to fit it
+# Note: converts all .text and .data to .ktext and .kdata
 $(KER_ASM_DIR)/%.s: $(KER_SRC_DIR)/%.c
-# 1. Compile C to raw MIPS assembly
-# !!! NOTE !!! Converts all .text and .data to .ktext and .kdata
 	$(CC) $(CFLAGS) $< -o $@.tmp
 
 	sed -E \
@@ -53,11 +58,9 @@ $(KER_ASM_DIR)/%.s: $(KER_SRC_DIR)/%.c
 		-e '/^[[:space:]]*\.ent[[:space:]]+/d' \
 		$@.tmp > $@
 
-# 3. Clean up the temporary file
 	rm $@.tmp
 
 $(USR_ASM_DIR)/%.s: $(USR_SRC_DIR)/%.c
-# 1. Compile C to raw MIPS assembly
 	$(CC) $(CFLAGS) -I./include $< -o $@.tmp
 
 	sed -E \
@@ -75,7 +78,6 @@ $(USR_ASM_DIR)/%.s: $(USR_SRC_DIR)/%.c
 		-e '/^[[:space:]]*\.ent[[:space:]]+/d' \
 		$@.tmp > $@
 
-# 3. Clean up the temporary file
 	rm $@.tmp
 
 clean:

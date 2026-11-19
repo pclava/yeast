@@ -40,8 +40,8 @@ for file in "${ks_files[@]}"; do
   ko_files+=("${file%.s}.o")
 done
 
-./assemble "${ks_files[@]}"
-./link -c -s _entry -o kernel.out "${ko_files[@]}"
+./MIPSAssembler "${ks_files[@]}"
+./MIPSLinker -c -s _entry -o kernel.out "${ko_files[@]}"
 
 
 # === BUILD USER PROGRAMS ===
@@ -57,8 +57,7 @@ ulib_o=()
 for file in "${ulib_s[@]}"; do
   ulib_o+=("${file%.s}.o")
 done
-
-./assemble "${ulib_s[@]}"
+./MIPSAssembler "${ulib_s[@]}"
 
 # Assemble program files
 usrc_s=(
@@ -69,12 +68,12 @@ usrc_o=()
 for file in "${usrc_s[@]}"; do
   usrc_o+=("${file%.s}.o")
 done
-./assemble "${usrc_s[@]}"
+./MIPSAssembler "${usrc_s[@]}"
 
 # Build programs
 for file in "${usrc_o[@]}"; do
   filename=$(basename "${file}" .o)
-  ./link -o "userroot/_$filename" "${file}" "${ulib_o[@]}"
+  ./MIPSLinker -o "userroot/_$filename" "${file}" "${ulib_o[@]}"
 done
 
 # Clean objects (normally would do the -c flag during linking but we link multiple times)
