@@ -1,7 +1,7 @@
 #!/bin/zsh
 
 # Build the kernel, user programs, and disk
-# Expects mkfs, assemble (MIPSAssembler), and link (MIPSLinker) to be in the same directory
+# Expects mkfs, MIPSAssembler, and MIPSLinker to be in the same directory
 
 src="asm"
 pure="$src/pure"
