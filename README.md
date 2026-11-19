@@ -7,7 +7,7 @@ I am building yeast as an accompaniment to my Operating Systems course, and as s
 
 yeast will _not_ run on the most recent release of MIPSEmulator. Be patient!
 
-There is some documentation and general OS discussion in the Wiki section of this repo. It is cursed to be incomplete in perpetuity, so write to me if you would like anything explained.
+There is some documentation and general OS discussion in the Wiki section of this repo. It is cursed to perpetual incompletion, so write to me if you would like anything explained.
 # Building
 To build, you need:
 - A clang instance supporting the **mipsel** target (MIPS little-endian). The default in the Makefile is currently the one on my own machine. To build, set `CC` to your own compiler when you run `make` (eg. `make CC=clang` if your native clang instance supports mipsel).
