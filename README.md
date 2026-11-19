@@ -12,8 +12,8 @@ There is some documentation and general OS discussion in the Wiki section of thi
 To build, you need:
 - A clang instance supporting the **mipsel** target (MIPS little-endian). The default in the Makefile is currently the one on my own machine. To build, set `CC` to your own compiler when you run `make` (eg. `make CC=clang` if your native clang instance supports mipsel).
   - `clang -print-targets | grep mipsel` to check if your clang instance supports mipsel
-- My [assembler and linker](https://github.com/pclava/MIPSAssembler) with the names `MIPSAssembler` and `MIPSLinker` in the same path as `build.sh`
-- The **kernel** version of my [emulator](https://github.com/pclava/MIPSEmulator) with the name `MIPSEmulator`
+- The [assembler and linker](https://github.com/pclava/MIPSAssembler) with the names `MIPSAssembler` and `MIPSLinker` in the same directory as `build.sh`
+- The **kernel** version of the [emulator](https://github.com/pclava/MIPSEmulator) with the name `MIPSEmulator`
 
 The Makefile compiles the files into MIPS assembly, then calls `build.sh`. This script runs the assembler and links to create executables for the kernel (in `kernel.out`) and all user programs. These are in `/userroot`, prefixed with `_` to avoid confusion with host programs. The prefix is stripped during loading.
 
@@ -26,7 +26,7 @@ To run the kernel:
 ./MIPSEmulator kernel.out disk.img
 ``
 
-replacing `kernel.out` if you've changed the name of the kernel executable and `disk.img` if you've changed the name of the disk image.
+with the name of your kernel executable (`kernel.out` by default) and disk image (`disk.img` by default)
 
 ## mkfs
 The emulator uses a disk image file to emulate the hard disk. `mkfs` creates a disk image pre-loaded with host files from a given directory. The build script calls mkfs with:
