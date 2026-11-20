@@ -46,6 +46,8 @@ char *diskname;
 char *userroot;
 uint i_rootdir;
 
+char skip_dotfiles = 1;
+
 // stolen from xv6
 uint xint(uint x)
 {
@@ -278,6 +280,8 @@ uint add_dir(char *path, uint dirno) {
 
 // Adds a file to the directory inum and returns the file's inum
 uint add_file(char *path, uint dirno) {
+    if (skip_dotfiles && *path == '.') return -1; // skip dot files
+
     printf("Adding file %s\n", path);
     FILE *f = fopen(path, "rb");
     assert(f != NULL);

@@ -2,6 +2,7 @@
 
 #include "memlayout.h"
 #include "printk.h"
+#include "string.h"
 
 enum DiskOp {
     READ = 1,
@@ -80,6 +81,7 @@ void disk_test(void) {
 }
 
 void bcache_init(void) {
+    memset(bcache.bufs, 0, sizeof(bcache.bufs));
     bcache.head = bcache.bufs;
     bcache.head->prev = bcache.head;
     bcache.head->next = bcache.head;
@@ -100,13 +102,24 @@ void bcache_init(void) {
     }
 }
 
+static void debug_cache(void) {
+    int found = 0;
+    for (int i = 0; i < NBUFS; i++) {
+        struct bbuf *b = &bcache.bufs[i];
+        if (b->references != 0) {
+            found = 1;
+            printk("%d.", b->bno);
+        }
+    }
+    if (found) printk("\n\r");
+}
+
 // otherwise known as bget (block get)
 // Gets a block from the cache
 // If the block is not cached, finds a slot and assigns it
 // The caller still has to load the contents from disk
 static struct bbuf *baguette(uint32_t bno) {
     acquire();
-
     struct bbuf *b;
 
     // Check cache for existing buffer
@@ -171,22 +184,24 @@ void brelse(struct bbuf *b) {
     acquire();
     b->references--; // no longer using block
     if (b->references == 0) { // if no one is waiting on this block
-        // move to head of linked list
+        if (b != bcache.head) {
+            // move to head of linked list
 
-        // remove from current position
-        b->prev->next = b->next; // y.next = v
-        b->next->prev = b->prev; // v.prev = y
+            // remove from current position
+            b->prev->next = b->next; // y.next = v
+            b->next->prev = b->prev; // v.prev = y
 
-        // place after tail
-        bcache.head->prev->next = b; // w.next = z
-        b->prev = bcache.head->prev; // z.prev = w
+            // place after tail
+            bcache.head->prev->next = b; // w.next = z
+            b->prev = bcache.head->prev; // z.prev = w
 
-        // place before head
-        bcache.head->prev = b;
-        b->next = bcache.head;
+            // place before head
+            bcache.head->prev = b;
+            b->next = bcache.head;
 
-        // set head
-        bcache.head = b;
+            // set head
+            bcache.head = b;
+        }
     }
     release();
 }
