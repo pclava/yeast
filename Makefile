@@ -40,9 +40,10 @@ mkfs.o: mkfs.c
 # and the compiler's output needs to be shaped to fit it
 # Note: converts all .text and .data to .ktext and .kdata
 $(KER_ASM_DIR)/%.s: $(KER_SRC_DIR)/%.c
+	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) $< -o $@.tmp
 
-	sed -E \
+	@sed -E \
 		-e 's/asciz/asciiz/g' \
 		-e '/func_end/d' \
 		-e '/[[:space:]]+nop([[:space:]]+|$$)/d' \
@@ -61,9 +62,10 @@ $(KER_ASM_DIR)/%.s: $(KER_SRC_DIR)/%.c
 	rm $@.tmp
 
 $(USR_ASM_DIR)/%.s: $(USR_SRC_DIR)/%.c
+	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) -I./include $< -o $@.tmp
 
-	sed -E \
+	@sed -E \
 		-e 's/asciz/asciiz/g' \
 		-e '/func_end/d' \
 		-e '/[[:space:]]+nop([[:space:]]+|$$)/d' \
