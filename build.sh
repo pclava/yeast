@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 
 # Build the kernel, user programs, and disk
 # Expects mkfs, MIPSAssembler, and MIPSLinker to be in the same directory
