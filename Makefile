@@ -9,11 +9,12 @@ TARGET = mipsel-linux-gnu
 
 # Idk what half these flags do but getting them right was a delicate process of fine tuning
 CFLAGS = -S -target $(TARGET) -march=mips32r3 -O2 -g0 \
-         -fno-PIC -mno-abicalls \
-         -mno-gpopt -G0 \
-         -fno-jump-tables -fno-builtin -fno-builtin-memcpy -fno-common \
-         -fno-asynchronous-unwind-tables -fno-addrsig \
-         -mllvm -disable-mips-delay-filler -I./include
+		-ffreestanding -nostdlibinc \
+        -fno-PIC -mno-abicalls \
+        -mno-gpopt -G0 \
+        -fno-jump-tables -fno-builtin -fno-builtin-memcpy -fno-common \
+        -fno-asynchronous-unwind-tables -fno-addrsig \
+        -mllvm -disable-mips-delay-filler -I./include
 
 KER_SRC_DIR = src
 KER_ASM_DIR = asm/kernel
