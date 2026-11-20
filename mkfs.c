@@ -280,7 +280,6 @@ uint add_dir(char *path, uint dirno) {
 
 // Adds a file to the directory inum and returns the file's inum
 uint add_file(char *path, uint dirno) {
-    if (skip_dotfiles && *path == '.') return -1; // skip dot files
 
     printf("Adding file %s\n", path);
     FILE *f = fopen(path, "rb");
@@ -302,6 +301,7 @@ uint add_file(char *path, uint dirno) {
     } else {
         name++;
     }
+    if (skip_dotfiles && *name == '.') return -1; // skip dot files
 
     // Client executables are prefixed with _ to avoid confusion
     if (name[0] == '_') name++;
