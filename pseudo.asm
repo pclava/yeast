@@ -111,13 +111,13 @@
 # Load address
 .macro la %r %lbl
     lui $at, %hi(%lbl)
-    ori %r, $at, %lo(%lbl)
+    addiu %r, $at, %lo(%lbl)
 .end_macro
 
 # Load immediate
 .macro li %r %imm
     lui $at, %hi(%imm)
-    ori %r, $at, %lo(%imm)
+    addiu %r, $at, %lo(%imm)
 .end_macro
 
 # Terminate program with exit code 0

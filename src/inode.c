@@ -185,10 +185,12 @@ uint32_t readi(struct inode *ip, void *addr, const size_t offset, size_t n) {
     size_t left = n;
     size_t count = 0;
     size_t off = offset;
+    char *dst = (char *)addr;
 
     while (count < n) {
         // Get block
         uint32_t bno = bmap(off / BLOCKSIZE, ip);
+        if (bno == 0) break;
         struct bbuf *bp = bread(bno);
 
         // How much do we copy?
@@ -196,15 +198,15 @@ uint32_t readi(struct inode *ip, void *addr, const size_t offset, size_t n) {
         uint32_t copy = min(block_left, left);
 
         // Copy data
-        memcpy(addr, &bp->data[off % BLOCKSIZE], copy);
+        memcpy(dst, &bp->data[off % BLOCKSIZE], copy);
+
+        brelse(bp);
 
         // Increment
         count += copy;
         off += copy;
         left -= copy;
-        addr += copy;
-
-        brelse(bp);
+        dst += copy;
     }
 
     return count;
@@ -218,6 +220,7 @@ uint32_t writei(struct inode *ip, void *addr, size_t offset, size_t n) {
     uint32_t left = n;
     uint32_t count = 0;
     size_t off = offset;
+    char *src = (char *)addr;
 
     while (count < n) {
         uint32_t bno = bmap(off / BLOCKSIZE, ip);
@@ -226,12 +229,13 @@ uint32_t writei(struct inode *ip, void *addr, size_t offset, size_t n) {
         uint32_t block_left = BLOCKSIZE - (off % BLOCKSIZE);
         uint32_t copy = min(block_left, left);
 
-        memcpy(&bp->data[off % BLOCKSIZE], addr, copy);
+        memcpy(&bp->data[off % BLOCKSIZE], src, copy);
         log_write(bp);
 
         left -= copy;
         count += copy;
         off += copy;
+        src += copy;
 
         brelse(bp);
     }

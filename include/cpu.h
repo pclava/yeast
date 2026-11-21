@@ -20,7 +20,7 @@ struct cpu {
     unsigned int ticks;     // Running count of timer ticks
 };
 
-extern struct cpu cpu;
+extern volatile struct cpu cpu;
 
 /*
  * Switches between contexts. Calling swtch saves $ra.
