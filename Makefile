@@ -7,13 +7,14 @@ ifndef CC_OVERRIDE_CHECK
 endif
 TARGET = mipsel-linux-gnu
 
-# Idk what half these flags do but getting them right was a delicate process of fine tuning
-CFLAGS = -S -target $(TARGET) -march=mips32r3 -O2 -g0 \
+# Idk what half these flags do but getting them right was a delicate act of fine tuning
+CFLAGS = -S -target $(TARGET) -march=mips32r3 -O1 -g0 \
 		-ffreestanding -nostdlibinc \
         -fno-PIC -mno-abicalls \
+        -fno-stack-protector -fno-ident \
         -mno-gpopt -G0 \
         -fno-jump-tables -fno-builtin -fno-builtin-memcpy -fno-common \
-        -fno-asynchronous-unwind-tables -fno-addrsig \
+        -fno-unwind-tables -fno-asynchronous-unwind-tables -fno-addrsig \
         -mllvm -disable-mips-delay-filler -I./include
 
 KER_SRC_DIR = src
@@ -54,7 +55,7 @@ $(KER_ASM_DIR)/%.s: $(KER_SRC_DIR)/%.c
 		-e 's/\.text/\.ktext/g' \
 		-e 's/\.4byte/\.word/g' \
 		-e '/^[[:space:]]*\.(section|nan|module|file|p2align)/d' \
-		-e '/^[[:space:]]*\.(type|size|ident|frame|mask|fmask|local|insn|comm|align|weak)/d' \
+		-e '/^[[:space:]]*\.(type|size|frame|mask|fmask|local|insn|comm|align|weak)/d' \
 		-e '/^[[:space:]]*\.set[[:space:]]+/d' \
 		-e '/^[[:space:]]*\.end[[:space:]]+/d' \
 		-e '/^[[:space:]]*\.ent[[:space:]]+/d' \
@@ -75,7 +76,7 @@ $(USR_ASM_DIR)/%.s: $(USR_SRC_DIR)/%.c
 		-e 's/\.ktext/\.text/g' \
 		-e 's/\.4byte/\.word/g' \
 		-e '/^[[:space:]]*\.(section|nan|module|file|p2align)/d' \
-		-e '/^[[:space:]]*\.(type|size|ident|frame|mask|fmask|local|insn|align|weak)/d' \
+		-e '/^[[:space:]]*\.(type|size|frame|mask|fmask|local|insn|align|weak)/d' \
 		-e '/^[[:space:]]*\.set[[:space:]]+/d' \
 		-e '/^[[:space:]]*\.end[[:space:]]+/d' \
 		-e '/^[[:space:]]*\.ent[[:space:]]+/d' \
