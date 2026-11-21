@@ -10,7 +10,7 @@
 
 #include "inode.h"
 
-struct cpu cpu = {0};
+volatile struct cpu cpu = {0};
 
 void kernel_terminate(int32_t code) {
     asm volatile (
