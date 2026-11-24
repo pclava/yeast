@@ -94,6 +94,7 @@ void vm_copy(struct proc *old, struct proc *new);
 
 // Removes all mappings in the process's page table
 // and frees physical memory
+// and flushes TLB (NOTE: since we re-use PIDs, this is necessary)
 void free_pagetable(unsigned char proc);
 
 /* === TLB === */

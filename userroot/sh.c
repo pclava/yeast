@@ -8,6 +8,7 @@ void colors();
 void yeast();
 void ls();
 void cd(char *path);
+void cat(char *path);
 
 int main() {
 
@@ -24,7 +25,10 @@ int main() {
         gets(buf, sizeof(buf));
         unsigned int n = strlen(buf);
 
-        if (strcmp(buf, "panic") == 0) {
+        if (strcmp(buf, "exit") == 0) {
+            exit(0);
+        }
+        else if (strcmp(buf, "panic") == 0) {
             *(int *)n = 1;
         }
         else if (strcmp(buf, "colors") == 0) {
@@ -50,6 +54,13 @@ int main() {
             }
             if (*c == '\0') printf("no path\n\r");
             else cd(++c);
+        }
+        else if (buf[0] == 'c' && buf[1] == 'a' && buf[2] == 't' && buf[3] == ' ') {
+            char *c = buf;
+            while (*c != ' ' && *c != '\0') {
+                c++;
+            }
+            cat(++c);
         }
         else if (strcmp(buf, "cwd") == 0) {
             char tmp[128];
@@ -121,4 +132,20 @@ void cd(char *path) {
     }
 
     chdir(path);
+}
+
+void cat(char *path) {
+    if (*path == '\0') {
+        printf("no path\n\r");
+        return;
+    }
+
+    int fd = open(path, O_RDONLY);
+    if (fd == -1) {
+        printf("bad path\n\r");
+        return;
+    }
+
+
+    // close(fd);
 }

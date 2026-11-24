@@ -9,12 +9,12 @@ int main(void) {
 
     while (1) {
         printf("init: starting sh\n\r");
-        int pid = fork();
-        if (pid < 0) {
+        int shpid = fork();
+        if (shpid < 0) {
             printf("no fork :(\n\r");
             exit(1); // i've never tested what happens if there are no processes but i think its ok
         }
-        if (pid == 0) {
+        if (shpid == 0) {
             char *argv[] = {"sh", NULL};
             exec("sh", argv);
             exit(1);
@@ -23,10 +23,12 @@ int main(void) {
         while (1) {
             unsigned int status;
             unsigned char child = wait(&status);
-            printf("init: shell closed? why?\n\r");
 
             // Restart shell
-            if (child == pid) break;
+            if (child == shpid) {
+                printf("init: sh closed, restarting\n\r");
+                break;
+            }
 
             // If it wasn't the shell, it was a childless process
         }

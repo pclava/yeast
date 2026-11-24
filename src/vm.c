@@ -154,8 +154,8 @@ void free_pagetable(unsigned char proc) {
     struct page_table *pt = &page_tables[proc];
 
     // Loop through entry in the page table
-    for (uint32_t va = UMEM_START; va < UMEM_LIMIT; va += PAGE_SIZE ) {
-        uint32_t *pte = &pt->pages[va >> PAGE_OFFSET];
+    for (uint32_t i = 0; i < PAGE_COUNT; i += 1) {
+        uint32_t *pte = &pt->pages[i];
 
         if (*pte == 0) continue;
 
@@ -170,6 +170,15 @@ void free_pagetable(unsigned char proc) {
         *pte = 0;
     }
 
+    // Flush TLB of entries belonging to this process
+    struct TLBEntry reset = {0};
+    for (int i = 0; i < TLB_SIZE; i += 1) {
+        struct TLBEntry entry;
+        tlb_read_entry(i, &entry);
+        if (entry.ASID == proc) {
+            tlb_write_entry(i, &reset);
+        }
+    }
 
 }
 
@@ -232,11 +241,16 @@ void tlb_load_miss() {
     const uint32_t vaddr = get_vaddr();
     const uint32_t vpn = vaddr & (~0xFFF);
     const unsigned char asid = get_asid();
+    if (asid == 2) {
+        // problem: vaddr is 0x402000 for some reason!
+        printk("miss: 0x%x\n\r", vaddr);
+    }
 
     struct PTE pte;
     pte_decode(&pte, pte_lookup(asid, vpn));
     if (!pte.valid) {
-        printk(ANSI_COLOR_RED "vaddr: 0x%x\n\r", vaddr);
+        uint32_t x = getproc()->trapframe->pc;
+        printk(ANSI_COLOR_RED "epc: 0x%x | vaddr: 0x%x\n\r", x, vaddr);
         panic("tried to read from unmapped memory");
     }
 

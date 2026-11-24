@@ -290,7 +290,7 @@ uint32_t fork(void) {
     np->context.ra = (uint32_t)forkret;
     np->context.sp = KSTACK0-((pid+1)*PAGE_SIZE);
     np->state = RUNNABLE;
-    np->pbrk = (void *)HEAP0;
+    np->pbrk = p->pbrk;
     np->parent = p->PID;
     np->pages = p->pages;
     np->cwd = idup(p->cwd);
@@ -333,7 +333,15 @@ void exit(uint32_t code) {
         }
     }
 
-    // When we have a file system, close all files
+    // Close all files
+    for (int i = 0; i < NOPEN; i++) {
+        struct file *fp = p->ofiles[i];
+        if (fp == NULL) continue;
+
+        fileclose(fp);
+
+        p->ofiles[i] = NULL;
+    }
 
     // Destroy process resources (note: xv6 does this when wait() is called but I don't see the point in not doing this now)
     // Trapframe
@@ -380,10 +388,13 @@ uint32_t wait(uint32_t *code) {
                 if (i->state == ZOMBIE) {
                     // Zombie child, collect exit code, destroy child, and return PID
                     if (code != NULL) *code = i->code;
+                    int ret = i->PID;
+                    memset(i, 0, sizeof(struct proc));
                     i->parent = 0;
                     i->state = UNUSED;
+                    i->PID = ret;
                     release();
-                    return i->PID;
+                    return ret;
                 }
 
                 // Child is still running, don't do anything
