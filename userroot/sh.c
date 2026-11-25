@@ -6,7 +6,7 @@
 #define BIN "/"
 #define NARGS 15
 struct cmd {
-    int argc;
+    int argc; // does not include first argument (exe name)
     char *command[1+NARGS+1]; // (path) (args) (NULL)
 };
 
@@ -99,6 +99,7 @@ int main(void) {
     }
 }
 
+// Commands not associated with a program, executed here
 unsigned int nativeexec(struct cmd cmd) {
     char *cmdname = cmd.command[0];
     if (strcmp(cmdname, "clear") == 0) {
@@ -128,6 +129,20 @@ unsigned int nativeexec(struct cmd cmd) {
     if (strcmp(cmdname, "colors") == 0) {
         if (cmd.argc != 0) goto unrecognized;
         colors();
+        return 0;
+    }
+
+    if (strcmp(cmdname, "cd") == 0) {
+        if (cmd.argc != 1) goto unrecognized;
+        if (chdir(cmd.command[1]) == -1) return 1;
+        return 0;
+    }
+
+    if (strcmp(cmdname, "cwd") == 0) {
+        if (cmd.argc != 0) goto unrecognized;
+        char buf[128];
+        getcwd(buf);
+        printf("%s\n\r", buf);
         return 0;
     }
 

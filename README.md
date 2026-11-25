@@ -39,5 +39,24 @@ which will create a file system rooted at `userroot` (**on the host machine, not
 
 One could imagine placing the `/etc`, `/bin`, and other such directories in `/userroot` if one wanted to build out a more complete operating system.
 
+# Adding to yeast
+To add a user program:
+- write its C file somewhere in `/userroot`
+- add it to `build.sh` (see instructions there)
+- if you want `sh` to see it, place it at the top of `/userroot`
+- rebuild the project
+
+To add a user library:
+- write its C file at the top of `/userroot`
+- add the declarations to `user.h`
+- add it to `build.sh` (see instructions there)
+- rebuild the project
+
+To add a file to the kernel's source:
+- write its C file in `/src` and optionally its header in `/include`
+- add it to `build.sh` (see instructions there)
+- rebuild the project
+
+
 ---
 Every line of code in this repository was written by a human, though sometimes not me (some standard library code is adapted).

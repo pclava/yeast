@@ -11,6 +11,7 @@ userroot="userroot"
 
 # === BUILD KERNEL ===
 
+# ADD KERNEL PROGRAMS HERE WITH THE FORMAT "$ker/<name>.s"
 ks_files=(
   "$pure/boot.s"
   "$ker/main.s"
@@ -48,6 +49,7 @@ done
 # === BUILD USER PROGRAMS ===
 
 # Assemble lib files
+# ADD USER LIBRARIES HERE WITH THE FORMAT "$usr/<name>.s"
 ulib_s=(
   "$pure/usys.s"
   "$usr/printf.s"
@@ -62,6 +64,7 @@ done
 ./MIPSAssembler -p pseudo.asm "${ulib_s[@]}"
 
 # Assemble program files
+# ADD USER SOURCES HERE WITH THE FORMAT "$usr/<name>.s"
 usrc_s=(
   "$usr/init.s"
   "$usr/sh.s"

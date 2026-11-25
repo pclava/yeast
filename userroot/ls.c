@@ -3,12 +3,21 @@
 
 // TODO: stat syscall to ensure path is a directory
 int main(int argc, char *argv[]) {
-    if (argc != 2) {
+    char buf[128];
+    char *path;
+    if (argc == 1) {
+        getcwd(buf);
+        path = buf;
+    }
+    else if (argc == 2) {
+        path = argv[1];
+    }
+    else {
         printf("Usage: ls file\n\r");
         return 1;
     }
 
-    int fd = open(argv[1], O_RDONLY);
+    int fd = open(path, O_RDONLY);
     if (fd == -1) {
         printf("ls: path %s not found\n\r", argv[1]);
         return 1;
