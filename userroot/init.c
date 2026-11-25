@@ -26,7 +26,7 @@ int main(void) {
 
             // Restart shell
             if (child == shpid) {
-                printf("init: sh closed, restarting\n\r");
+                printf("init: sh closed with code %u, restarting\n\r", status);
                 break;
             }
 

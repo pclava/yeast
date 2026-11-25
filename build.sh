@@ -7,6 +7,7 @@ src="asm"
 pure="$src/pure"
 ker="$src/kernel"
 usr="$src/user"
+userroot="userroot"
 
 # === BUILD KERNEL ===
 
@@ -52,6 +53,7 @@ ulib_s=(
   "$usr/printf.s"
   "$usr/ulib.s"
   "$usr/umalloc.s"
+  "$userroot/__start.s"
 )
 ulib_o=()
 for file in "${ulib_s[@]}"; do
@@ -73,13 +75,14 @@ done
 # Build programs
 for file in "${usrc_o[@]}"; do
   filename=$(basename "${file}" .o)
-  ./MIPSLinker -o "userroot/_$filename" "${file}" "${ulib_o[@]}"
+  ./MIPSLinker -s __start -o "$userroot/_$filename" "${file}" "${ulib_o[@]}"
 done
 
 # Clean objects (normally would do the -c flag during linking but we link multiple times)
 rm -f "$ker"/*.o
 rm -f "$pure"/*.o
 rm -f "$usr"/*.o
+rm -f "$userroot"/*.o
 
 # === FILE SYSTEM ===
-./mkfs disk.img userroot
+./mkfs disk.img "$userroot"

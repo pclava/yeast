@@ -10,12 +10,7 @@ void ls();
 void cd(char *path);
 void cat(char *path);
 
-int main() {
-
-    // open stdin,out,err
-    int fd0 = open("terminal", O_RDWR | O_CREAT);
-    int fd1 = dup(0);
-    int fd2 = dup(0);
+int main(int argc, char *argv[]) {
 
     intro();
 
@@ -26,9 +21,10 @@ int main() {
         unsigned int n = strlen(buf);
 
         if (strcmp(buf, "exit") == 0) {
-            exit(0);
+            return 0;
         }
-        else if (strcmp(buf, "panic") == 0) {
+
+        if (strcmp(buf, "panic") == 0) {
             *(int *)n = 1;
         }
         else if (strcmp(buf, "colors") == 0) {

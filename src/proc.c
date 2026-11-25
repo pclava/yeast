@@ -252,7 +252,7 @@ int kexec(char *path, int argc, char **argv) {
     }
 
     // === Prepare to execute ===
-    p->trapframe->pc = UTEXT0;
+    p->trapframe->pc = hdr.entry;
     p->trapframe->sp = (uint32_t) start;
     return 0;
 
