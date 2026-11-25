@@ -25,6 +25,7 @@ uint8_t term_color; // Cursor color
 enum STATE term_state;  // Modifiers
 uint32_t command;   // Active command
 uint8_t echo;   // Echo enabled
+uint8_t doreturn = 1; // Should the terminal echo a carriage return when it sees a newline?
 
 // Starts at 30 (fg) or 40 (bg)
 enum vga_color ansi_to_vga[] = {
@@ -277,6 +278,7 @@ void term_putchar(const char c)
         case '\n':
             term_row++;
             if (term_row >= VGA_HEIGHT) scroll();
+            if (doreturn) term_col = 0;
             break;
         case '\r':
             term_col = 0;

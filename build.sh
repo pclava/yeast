@@ -69,6 +69,7 @@ usrc_s=(
   "$usr/init.s"
   "$usr/sh.s"
   "$usr/ls.s"
+  "$usr/cat.s"
 )
 usrc_o=()
 for file in "${usrc_s[@]}"; do
