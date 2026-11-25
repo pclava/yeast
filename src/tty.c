@@ -124,6 +124,9 @@ void term_intr(uint8_t c) {
         }
     }
 
+    // Transformations
+    if (c == '\t') c = ' ';
+
     switch (c) {
         case C('P'):    // debug stuff
             procdump();
@@ -246,11 +249,11 @@ static void scroll() {
     term_color = old_colors;
 }
 
-void term_putchar(const char c)
+void term_putchar(const char ch)
 {
     // these shouldn't be done here probably, because then you can type it if you allow the user to type escape
     if (term_state == ESCAPE) {
-        if (c == '[') {
+        if (ch == '[') {
             term_state = COMMAND;
             return;
         }
@@ -258,15 +261,15 @@ void term_putchar(const char c)
     }
 
     else if (term_state == COMMAND) {
-        if (c == 'm') {
+        if (ch == 'm') {
             read_command();
             term_state = NORMAL;
             return;
         }
 
-        if (c >= '0' && c <= '9') {
+        if (ch >= '0' && ch <= '9') {
             command *= 10;
-            command += c - '0';
+            command += ch - '0';
             return;
         }
 
@@ -274,7 +277,8 @@ void term_putchar(const char c)
         // Fall into main switch statement below
     }
 
-    switch (c) {
+    char c = ch;
+    switch (ch) {
         case '\n':
             term_row++;
             if (term_row >= VGA_HEIGHT) scroll();
@@ -296,13 +300,20 @@ void term_putchar(const char c)
             }
             term_putentryat(' ', term_color, term_col, term_row);
             break;
+        case '\t': // not super necessary since term_intr converts tabs but here anyway out of principle
+            c = ' ';
+            goto printable;
         default:
             if (c < 20) return; // skip non-printable
-            term_putentryat(c, term_color, term_col, term_row);
-            if (++term_col == VGA_WIDTH) {
-                term_col = 0;
-                if (++term_row == VGA_HEIGHT) scroll();
-            }
+            goto printable;
+    }
+
+    return;
+    printable:
+    term_putentryat(c, term_color, term_col, term_row);
+    if (++term_col == VGA_WIDTH) {
+        term_col = 0;
+        if (++term_row == VGA_HEIGHT) scroll();
     }
 }
 

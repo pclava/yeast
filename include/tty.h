@@ -30,7 +30,7 @@ void term_intr(uint8_t c);                                          // Called by
 void term_setcolor(uint8_t color);                                  // Sets text color (see vga.h for ANSI color codes)
 void term_init(void);                                               // Called by main(): initializes terminal and state variables
 void term_putentryat(char c, uint8_t color, size_t x, size_t y);    // Writes to terminal screen
-void term_putchar(char c);                                          // Puts character at current cursor with current color
+void term_putchar(char ch);                                          // Puts character at current cursor with current color
 void term_write(const char* data, size_t size);                     // Prints from a buffer
 void term_writestring(const char *data);                            // Prints from a null-terminated string
 void term_clear(uint8_t color);                                     // Fills the terminal with spaces with the given vga_entry_color. Use 0 for black-on-black
