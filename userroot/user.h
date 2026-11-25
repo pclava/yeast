@@ -1,4 +1,5 @@
 #pragma once
+#include "file.h"
 
 // === TTY ===
 enum termop {
@@ -24,6 +25,7 @@ int chdir(const char *path);
 int close(int fd);
 int unlink(const char *path);
 char *getcwd(char *buf);
+int fstat(int fd, struct stat *buf);
 
 // === ULIB (ulib.c) ===
 char *strcpy(char *, const char *);

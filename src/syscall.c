@@ -6,6 +6,7 @@
 #include "printk.h"
 #include "memlayout.h"
 #include "tty.h"
+#include "file.h"
 #include "string.h"
 
 static uint32_t argraw(const int n) {
@@ -520,6 +521,16 @@ static uint32_t sys_getcwd(void) {
     return (uint32_t) buf;
 }
 
+static uint32_t sys_fstat(void) {
+    int fd = (int) argraw(0);
+    if (fd < 0 || fd >= NOPEN) return -1;
+    struct stat *buf = (struct stat *) argraw(1);
+    struct proc *p = getproc();
+
+    struct file *fp = p->ofiles[fd];
+    return filestat(fp, buf);
+}
+
 static uint32_t (*syscalls[])(void) = {
     [SYS_sbrk]          = sys_sbrk,
     [SYS_exit]          = sys_exit,
@@ -539,6 +550,7 @@ static uint32_t (*syscalls[])(void) = {
     [SYS_close]         = sys_close,
     [SYS_unlink]        = sys_unlink,
     [SYS_getcwd]        = sys_getcwd,
+    [SYS_fstat]         = sys_fstat,
 };
 
 void syscall() {

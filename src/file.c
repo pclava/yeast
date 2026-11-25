@@ -85,3 +85,17 @@ int filewrite(fileptr fp, void *addr, size_t size) {
 
     panic("filewrite: not implemented");
 }
+
+int filestat(struct file *fp, struct stat *st) {
+    if (fp->type == FD_INODE) {
+        memset(st, 0, sizeof(*st));
+        ilock(fp->ip);
+        st->size = fp->ip->d.size;
+        st->ino = fp->ip->inum;
+        st->type = fp->ip->d.type;
+        st->nlink = fp->ip->d.nlink;
+        iunlock(fp->ip);
+        return 0;
+    }
+    return -1;
+}

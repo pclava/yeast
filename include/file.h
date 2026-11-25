@@ -47,6 +47,13 @@ struct file {
     struct inode *ip;
 };
 
+struct stat {
+    uint32_t size;
+    uint32_t ino;
+    uint32_t nlink;
+    uint32_t type;
+};
+
 extern struct file ftable[NFILE];
 
 void fileinit(void);
@@ -70,3 +77,6 @@ int fileread(struct file *fp, void *addr, size_t size);
 // Wrapper for underlying write function. Checks permissions
 // For inodes, uses offset
 int filewrite(struct file *fp, void *addr, size_t size);
+
+// Writes file metadata into pointer
+int filestat(struct file *fp, struct stat *st);

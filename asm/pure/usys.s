@@ -126,3 +126,10 @@ getcwd:
     li      $v0, _SYSGETCWD
     syscall
     jr      $ra
+
+# int fstat(int fd, struct stat *buf)
+    .globl fstat
+fstat:
+    li      $v0, _SYSFSTAT
+    syscall
+    jr      $ra

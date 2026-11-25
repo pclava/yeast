@@ -23,6 +23,16 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    struct stat st;
+    if (fstat(fd, &st) == -1) {
+        printf("ls: could not read file\n\r");
+        return 1;
+    }
+    if (st.type != F_DIRECTORY) {
+        printf("ls: %s is not a directory\n\r", path);
+        return 1;
+    }
+
     printf("inode: name\n\r");
     printf("-----------\n\r");
     struct direntry de;
