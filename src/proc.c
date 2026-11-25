@@ -189,7 +189,7 @@ int kexec(char *path, int argc, char **argv) {
     // === Read file into memory ===
     begin_op();
     if ((ip = namelookup(path)) == NULL) {
-        printk(":(\n\r");
+        printk("file not found: %s\n\r", path);
         end_op();
         return -1;
     }

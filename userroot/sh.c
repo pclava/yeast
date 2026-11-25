@@ -1,81 +1,30 @@
 
-#include "file.h"
+#include <stddef.h>
 #include "user.h"
-#include "fs.h"
+#include "file.h"
 
-void intro();
-void colors();
-void yeast();
-void ls();
-void cd(char *path);
-void cat(char *path);
+#define BIN "/"
+#define NARGS 15
+struct cmd {
+    int argc;
+    char *command[1+NARGS+1]; // (path) (args) (NULL)
+};
 
-int main(int argc, char *argv[]) {
+unsigned int cmdexec(struct cmd cmd);
+unsigned int nativeexec(struct cmd cmd);
 
-    intro();
-
-    char buf[128];
-    while (1) {
-        printf("%% ");
-        gets(buf, sizeof(buf));
-        unsigned int n = strlen(buf);
-
-        if (strcmp(buf, "exit") == 0) {
-            return 0;
-        }
-
-        if (strcmp(buf, "panic") == 0) {
-            *(int *)n = 1;
-        }
-        else if (strcmp(buf, "colors") == 0) {
-            colors();
-        }
-        else if (strcmp(buf, "clear") == 0) {
-            termctl(TTY_CLEAR);
-        }
-        else if (strcmp(buf, "intro") == 0) {
-            termctl(TTY_CLEAR);
-            intro();
-        }
-        else if (strcmp(buf, "yeast") == 0) {
-            yeast();
-        }
-        else if (strcmp(buf, "ls") == 0) {
-            ls();
-        }
-        else if (buf[0] == 'c' && buf[1] == 'd' && buf[2] == ' ') {
-            char *c = buf;
-            while (*c != ' ' && *c != '\0') {
-                c++;
-            }
-            if (*c == '\0') printf("no path\n\r");
-            else cd(++c);
-        }
-        else if (buf[0] == 'c' && buf[1] == 'a' && buf[2] == 't' && buf[3] == ' ') {
-            char *c = buf;
-            while (*c != ' ' && *c != '\0') {
-                c++;
-            }
-            cat(++c);
-        }
-        else if (strcmp(buf, "cwd") == 0) {
-            char tmp[128];
-            getcwd(tmp);
-            printf("%s\n\r", tmp);
-        }
-        else if (buf[0] == '\0') {
-            continue;
-        }
-        else {
-            printf(ANSI_COLOR_BRIGHT_RED "unrecognized command\n\r" ANSI_COLOR_RESET);
-        }
-
-        termctl(TTY_FLUSH);
+void intro() {
+    printf("\n\r" ANSI_BG_YELLOW ANSI_COLOR_BLACK);
+    for (int i = 0; i < 31; i++) {
+        printf(" ");
     }
-}
-
-void yeast() {
-    printf(ANSI_COLOR_YELLOW KERNEL_NAME ANSI_COLOR_RESET " kernel " KERNEL_VERS " by paul clavaud\n\r");
+    printf(ANSI_COLOR_BRIGHT_WHITE ANSI_BG_BLACK);
+    printf(" welcome to " ANSI_COLOR_YELLOW "yeast ");
+    printf(ANSI_COLOR_BLACK ANSI_BG_YELLOW);
+    for (int i = 49; i < VGA_WIDTH; i++) {
+        printf(" ");
+    }
+    printf(ANSI_COLOR_RESET "\n\r");
 }
 
 void colors() {
@@ -94,54 +43,116 @@ void colors() {
     printf(ANSI_COLOR_RESET);
 }
 
-void intro() {
-    printf("\n\r" ANSI_BG_YELLOW ANSI_COLOR_BLACK);
-    for (int i = 0; i < 31; i++) {
-        printf(" ");
+int main(void) {
+
+    struct cmd command;
+    char buf[128];
+
+    intro();
+
+    while (1) {
+        memset(&command, '\0', sizeof(struct cmd));
+        printf("%% ");
+        gets(buf, sizeof(buf));
+        if (*buf == '\0') continue;
+        unsigned int n = strlen(buf);
+
+        // 1. Get path
+        char *args_start = strchr(buf, ' ');
+        if (args_start == NULL) {
+            command.command[0] = buf;
+            cmdexec(command);
+            continue;
+        }
+
+        while (*args_start == ' ') *args_start++ = '\0';
+        if (*args_start == '\0') continue;
+        if (*buf == '\0') {
+            printf("unrecognized command\n\r");
+            continue;
+        }
+        command.command[0] = buf;
+
+        // 2. Parse args
+        char *cur = args_start;
+        int run = 1;
+        while (cur != NULL) {
+            while (*cur == ' ') *cur++ = '\0';
+            if (*cur == '\0') break;
+
+            if (command.argc > NARGS) {
+                printf("too many arguments, aborting\n\r");
+                run = 0;
+                break;
+            }
+
+            // Add to list
+            command.command[command.argc+1] = cur;
+            command.argc++;
+
+            // Get next
+            cur = strchr(cur, ' ');
+        }
+
+        // 3. Execute
+        if (run) cmdexec(command);
     }
-    printf(ANSI_COLOR_BRIGHT_WHITE ANSI_BG_BLACK);
-    printf(" welcome to " ANSI_COLOR_YELLOW "yeast ");
-    printf(ANSI_COLOR_BLACK ANSI_BG_YELLOW);
-    for (int i = 49; i < VGA_WIDTH; i++) {
-        printf(" ");
-    }
-    printf(ANSI_COLOR_RESET "\n\r");
 }
 
-void ls() {
-    printf("name (inode)\n\r");
-    int fd = open(".", O_RDONLY);
-
-    struct direntry de;
-    while (read(fd, &de, sizeof(de)) == sizeof(de)) {
-        if (de.inode == 0) continue;
-        printf("%s (%d)\n\r", de.name, de.inode);
+unsigned int nativeexec(struct cmd cmd) {
+    char *cmdname = cmd.command[0];
+    if (strcmp(cmdname, "clear") == 0) {
+        if (cmd.argc != 0) goto unrecognized;
+        termctl(TTY_CLEAR);
+        return 0;
     }
 
-    close(fd);
+    if (strcmp(cmdname, "exit") == 0) {
+        if (cmd.argc != 0) goto unrecognized;
+        exit(0);
+        return 0;
+    }
+
+    if (strcmp(cmdname, "yeast") == 0) {
+        if (cmd.argc != 0) goto unrecognized;
+        printf(ANSI_COLOR_YELLOW KERNEL_NAME ANSI_COLOR_RESET " kernel " KERNEL_VERS " by paul clavaud\n\r");
+        return 0;
+    }
+
+    if (strcmp(cmdname, "panic") == 0) {
+        if (cmd.argc != 0) goto unrecognized;
+        *(int *)1 = 1;
+        return 0;
+    }
+
+    if (strcmp(cmdname, "colors") == 0) {
+        if (cmd.argc != 0) goto unrecognized;
+        colors();
+        return 0;
+    }
+
+    return -1;
+    unrecognized:
+    printf("unrecognized command\n\r");
+    return 1;
 }
 
-void cd(char *path) {
-    if (*path == '\0') {
-        printf("cd: no path\n\r");
-        return;
+unsigned int cmdexec(struct cmd cmd) {
+    char *cmdname = cmd.command[0];
+    unsigned int x = nativeexec(cmd);
+    if (x != -1) return x;
+
+    char path[128] = BIN;
+    memcpy(path+strlen(BIN), cmdname, strlen(cmdname));
+
+    int pid = fork();
+    if (pid == 0) {
+        exec(path, cmd.command);
+        exit(1);
+        return 0;
     }
 
-    chdir(path);
-}
-
-void cat(char *path) {
-    if (*path == '\0') {
-        printf("no path\n\r");
-        return;
-    }
-
-    int fd = open(path, O_RDONLY);
-    if (fd == -1) {
-        printf("bad path\n\r");
-        return;
-    }
-
-
-    // close(fd);
+    unsigned int status;
+    wait(&status);
+    return status;
 }

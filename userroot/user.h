@@ -47,7 +47,7 @@ void free(void *);
 
 // === kernel stuff ===
 #define KERNEL_NAME "yeast"
-#define KERNEL_VERS "0.3.0"
+#define KERNEL_VERS "0.4.0"
 
 // === ANSI and VGA ===
 #define ANSI_COLOR_BLACK            "\x1b[30m"

@@ -241,10 +241,6 @@ void tlb_load_miss() {
     const uint32_t vaddr = get_vaddr();
     const uint32_t vpn = vaddr & (~0xFFF);
     const unsigned char asid = get_asid();
-    if (asid == 2) {
-        // problem: vaddr is 0x402000 for some reason!
-        printk("miss: 0x%x\n\r", vaddr);
-    }
 
     struct PTE pte;
     pte_decode(&pte, pte_lookup(asid, vpn));
