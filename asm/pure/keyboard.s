@@ -49,7 +49,7 @@ keyboard_state:
     .space  16
 
     .ktext
-#uint8_t key_from_scancode(uint8_t scancode)
+# uint8_t key_from_scancode(uint8_t scancode)
 .globl key_from_scancode
 key_from_scancode:
     la      $v0, KEYMAP                     # Get address of keymap

@@ -148,8 +148,8 @@ static char *get_name(char *path, char *name) {
         count++;
     }
     if (count > DIRSIZE) {count = DIRSIZE;} // TODO: what happens here?
-    memcpy(name, s, count+1);
-    name[count+1] = '\0';
+    memcpy(name, s, count);
+    name[count] = '\0';
     while (*p == '/') p++;
     return p;
 }
