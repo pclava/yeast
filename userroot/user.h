@@ -1,11 +1,6 @@
 #pragma once
 #include "file.h"
-
-// === TTY ===
-enum termop {
-    TTY_CLEAR,
-    TTY_FLUSH,
-};
+#include "tty.h"
 
 // === SYSCALLS (usys.s) ===
 int fork(void);
@@ -26,6 +21,7 @@ int close(int fd);
 int unlink(const char *path);
 char *getcwd(char *buf);
 int fstat(int fd, struct stat *buf);
+int mknod(const char *path, short major);
 
 // === ULIB (ulib.c) ===
 char *strcpy(char *, const char *);

@@ -23,6 +23,7 @@
 
 #define NFILE 64
 #define NOPEN 16
+#define NDEVS 8
 
 #define O_CREAT     0b00000001
 #define O_RDONLY    0b00000010
@@ -42,6 +43,7 @@ struct file {
     uint32_t references;
     char readable;
     char writable;
+    unsigned short major;
 
     uint32_t offset; // file pointer (where in inode we are reading/writing)
     struct inode *ip;
@@ -55,6 +57,12 @@ struct stat {
 };
 
 extern struct file ftable[NFILE];
+
+struct device {
+    int (*read)(char *addr, size_t n);
+    int (*write)(const char *addr, size_t n);
+};
+extern struct device devs[NDEVS];
 
 void fileinit(void);
 

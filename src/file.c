@@ -6,6 +6,7 @@
 
 typedef struct file * fileptr;
 
+struct device devs[NDEVS] = {0};
 struct file ftable[NFILE];
 
 void fileinit(void) {
@@ -61,6 +62,11 @@ void fileclose(fileptr fp) {
 int fileread(fileptr fp, void *addr, size_t size) {
     if (!fp->readable) return -1;
 
+    if (fp->type == FD_DEVICE) {
+        if (fp->major >= NDEVS || !devs[fp->major].read) return -1;
+        return devs[fp->major].read(addr, size);
+    }
+
     if (fp->type == FD_INODE) {
         ilock(fp->ip);
         uint32_t ret = readi(fp->ip, addr, fp->offset,size);
@@ -74,6 +80,11 @@ int fileread(fileptr fp, void *addr, size_t size) {
 
 int filewrite(fileptr fp, void *addr, size_t size) {
     if (!fp->writable) return -1;
+
+    if (fp->type == FD_DEVICE) {
+        if (fp->major >= NDEVS || !devs[fp->major].write) return -1;
+        return devs[fp->major].write(addr, size);
+    }
 
     if (fp->type == FD_INODE) {
         ilock(fp->ip);

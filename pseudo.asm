@@ -28,6 +28,7 @@
 .define _SYSUNLINK      29
 .define _SYSGETCWD      30
 .define _SYSFSTAT       31
+.define _SYSMKNOD       32
 
 # For debugging, prints the value of a register
 .macro peek %r %tmp

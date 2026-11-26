@@ -6,6 +6,7 @@
 #include "printk.h"
 #include "memlayout.h"
 #include "tty.h"
+#include "fs.h"
 #include "file.h"
 #include "string.h"
 
@@ -111,11 +112,6 @@ static uint32_t sys_read(void) {
     void *buffer = (void *)argraw(1);
     const int n = (int) argraw(2);
 
-    // TODO: devices n allat
-    if (fd == 0 || fd == 1 || fd == 2) {
-        return term_read(buffer, n);
-    }
-
     struct file *file = getfile(fd);
     if (file == NULL) return -1;
 
@@ -126,11 +122,6 @@ static uint32_t sys_write(void) {
     const int fd = (int) argraw(0);
     void *buffer = (void *)argraw(1);
     const int n = (int) argraw(2);
-
-    if (fd == 0 || fd == 1 || fd == 2) {
-        term_write(buffer, n);
-        return n;
-    }
 
     struct file *file = getfile(fd);
     if (file == NULL) return -1;
@@ -199,13 +190,14 @@ static uint32_t sys_link(void) {
 }
 
 // Creates a new inode and returns it locked
-static struct inode *create(char *path, enum file_type type) {
+static struct inode *create(char *path, enum file_type type, int major) {
     // Get parent
     char name[DIRSIZE+1];
     struct inode *parent = parentlookup(path, name);
     if (parent == NULL) return NULL;
     ilock(parent);
     if (parent->d.type != F_DIRECTORY) goto fail;
+    if (parent->d.nlink == 0) goto fail;
 
     // Check if name already exists. If it's a file, return it
     struct inode *ip;
@@ -213,7 +205,7 @@ static struct inode *create(char *path, enum file_type type) {
         iunlock(parent);
         iput(parent);
         ilock(ip);
-        if (type == F_FILE && ip->d.type == F_FILE) {
+        if (type == F_FILE && (ip->d.type == F_FILE || ip->d.type == F_DEVICE)) {
             return ip;
         }
         iunlock(ip);
@@ -227,6 +219,7 @@ static struct inode *create(char *path, enum file_type type) {
     ilock(ip);
 
     ip->d.nlink = 1;
+    ip->d.major = major;
     iupdate(ip);
 
     // If directory, add default entries
@@ -237,6 +230,12 @@ static struct inode *create(char *path, enum file_type type) {
 
     // Link to parent
     add_direntry(parent, name, ip->inum);
+
+    // add a link for the .. entry
+    if (type == F_DIRECTORY) {
+        parent->d.nlink++;
+        iupdate(parent);
+    }
 
     iunlock(parent);
     iput(parent);
@@ -259,7 +258,7 @@ static uint32_t sys_open(void) {
     struct inode *ip;
     if (mode & O_CREAT) {
         // Returns the inode locked
-        ip = create(path, F_FILE);
+        ip = create(path, F_FILE, 0);
         if (ip == NULL) {
             end_op();
             return -1;
@@ -281,7 +280,6 @@ static uint32_t sys_open(void) {
         }
     }
 
-
     // Allocate a file
     struct file *fp = filealloc();
     if (fp == NULL) {
@@ -302,10 +300,24 @@ static uint32_t sys_open(void) {
     }
 
     // Populate file (references already incremented in filealloc())
-    fp->type = FD_INODE;
-    fp->offset = 0;
-    fp->readable = (char) (mode & O_RDWR) || ((mode & O_RDONLY) && !(mode & O_WRONLY));
-    fp->writable = (char) (mode & O_RDWR) || ((mode & O_WRONLY) && !(mode & O_RDONLY));
+
+    if (ip->d.type == F_DEVICE) {
+        if (fp->major >= NDEVS) {
+            fileclose(fp);
+            clearfd(fd);
+            iunlock(ip);
+            iput(ip);
+            end_op();
+            return -1;
+        }
+        fp->type = FD_DEVICE;
+        fp->major = ip->d.major;
+    } else {
+        fp->type = FD_INODE;
+        fp->offset = 0;
+    }
+    fp->readable = (char) ((mode & O_RDWR) || ((mode & O_RDONLY) && !(mode & O_WRONLY)));
+    fp->writable = (char) ((mode & O_RDWR) || ((mode & O_WRONLY) && !(mode & O_RDONLY)));
     fp->ip = ip;
 
     if (mode & O_TRUNC && ip->d.type == F_FILE) {
@@ -323,7 +335,7 @@ static uint32_t sys_mkdir(void) {
     begin_op();
 
     // Try creating
-    struct inode *ip = create(path, F_DIRECTORY);
+    struct inode *ip = create(path, F_DIRECTORY, 0);
     if (ip == NULL) {
         end_op();
         return -1;
@@ -334,6 +346,24 @@ static uint32_t sys_mkdir(void) {
     end_op();
     return 0;
 
+}
+
+static uint32_t sys_mknod(void) {
+    char *path = (char *) argraw(0);
+    int major = (int) argraw(1);
+
+    begin_op();
+    struct inode *ip = create(path, F_DEVICE, major);
+    if (ip == NULL) {
+        end_op();
+        return -1;
+    }
+
+    iunlock(ip);
+    iput(ip);
+
+    end_op();
+    return 0;
 }
 
 static uint32_t sys_dup(void) {
@@ -551,6 +581,7 @@ static uint32_t (*syscalls[])(void) = {
     [SYS_unlink]        = sys_unlink,
     [SYS_getcwd]        = sys_getcwd,
     [SYS_fstat]         = sys_fstat,
+    [SYS_mknod]         = sys_mknod,
 };
 
 void syscall() {

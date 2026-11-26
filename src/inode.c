@@ -23,30 +23,23 @@ void inodes_init(void) {
 struct inode *ialloc(uint32_t type) {
     if (type == 0) return NULL;
 
-    // For every inode block
-    for (int i = 0; i < NINODES/INODES_PER_BLOCK; i++) {
-        // Read block
-        struct bbuf *bp = bread(sb.inodestart+i);
+    for (unsigned int inum = 1; inum < NINODES; inum++) {
+        unsigned int block = inum/INODES_PER_BLOCK;
+        unsigned int index = inum % INODES_PER_BLOCK;
+        struct bbuf *bp = bread(sb.inodestart+block);
         struct dinode *dinodes = (struct dinode *)bp->data;
-
-        // For each inode inside block
-        for (int j = 0; j < INODES_PER_BLOCK; j++) {
-            uint32_t inum = i*INODES_PER_BLOCK + j;
-            struct dinode *d = dinodes + j;
-            if (d->type == 0) {
-                // Inode is unused
-                // Clear
-                memset_aligned((uint32_t *)d, 0, sizeof(struct dinode)/sizeof(uint32_t));
-                // Mark used
-                d->type = type;
-                // Write to disk
-                log_write(bp);
-                brelse(bp);
-                return iget(inum);
-            }
+        struct dinode *d = dinodes + index;
+        if (d->type == 0) {
+            // Inode is unused
+            // Clear
+            memset_aligned((uint32_t *)d, 0, sizeof(struct dinode)/sizeof(uint32_t));
+            // Mark used
+            d->type = type;
+            // Write to disk
+            log_write(bp);
+            brelse(bp);
+            return iget(inum);
         }
-
-        // Release block
         brelse(bp);
     }
 

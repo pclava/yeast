@@ -43,12 +43,14 @@ void bfree(uint32_t bno);       // Mark a sector as free in the bitmap
 enum file_type {
     F_DIRECTORY = 1,
     F_FILE = 2,
+    F_DEVICE = 3,
 };
 
 // On-disk inode structure
 struct dinode {
-    uint32_t type;
-    uint32_t nlink;
+    uint16_t type;                  // file_type
+    uint16_t major;                 // major device number
+    uint32_t nlink;                 // number of links to this inode
     uint32_t size;                  // Size of file in bytes
     uint32_t data[NDIRECT + 1];     // Direct data blocks. Last one points to the single indirect block
 };

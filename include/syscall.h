@@ -34,7 +34,8 @@
 #define SYS_unlink      29
 #define SYS_getcwd      30
 #define SYS_fstat       31
-#define SYSDOMAIN       31 // largest syscall and number of syscalls
+#define SYS_mknod       32
+#define SYSDOMAIN       32 // largest syscall and number of syscalls
 
 // Execute the syscall based on the contents of the trapframe's $v0 and argument registers
 // Called by usertrap() in trap.c

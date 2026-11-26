@@ -19,19 +19,21 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define TERM_MAJ 1
+
 // Operations to interact with the terminal from user space using sys_termctl()
 enum termop {
     TTY_CLEAR,  // Clears terminal, sets cursor to (0, 0)
     TTY_FLUSH,  // Flushes input buffer
 };
 
-int term_read(uint8_t *dst, int n);                                 // Reads from input buffer. This puts a process to sleep until it a line is sent!
+int term_read(char *dst, size_t n);                                 // Reads from input buffer. This puts a process to sleep until it a line is sent!
 void term_intr(uint8_t c);                                          // Called by intr_keydown() in trap.c: handles keypresses
 void term_setcolor(uint8_t color);                                  // Sets text color (see vga.h for ANSI color codes)
 void term_init(void);                                               // Called by main(): initializes terminal and state variables
 void term_putentryat(char c, uint8_t color, size_t x, size_t y);    // Writes to terminal screen
-void term_putchar(char ch);                                          // Puts character at current cursor with current color
-void term_write(const char* data, size_t size);                     // Prints from a buffer
+void term_putchar(char ch);                                         // Puts character at current cursor with current color
+int term_write(const char* data, size_t size);                      // Prints from a buffer
 void term_writestring(const char *data);                            // Prints from a null-terminated string
 void term_clear(uint8_t color);                                     // Fills the terminal with spaces with the given vga_entry_color. Use 0 for black-on-black
 void term_echo(uint8_t v);                                          // Takes boolean argument: disables or enables terminal echoing (when a key is pressed)

@@ -133,3 +133,10 @@ fstat:
     li      $v0, _SYSFSTAT
     syscall
     jr      $ra
+
+# int mknod(const char *path, short major)
+    .globl mknod
+mknod:
+    li      $v0, _SYSMKNOD
+    syscall
+    jr      $ra

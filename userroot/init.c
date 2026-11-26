@@ -1,11 +1,17 @@
 #include "user.h"
 #include "file.h"
+#include "tty.h"
 
 int main(void) {
-    // Open stdin stdout stderr (for now these do nothing)
-   open("terminal", O_RDWR | O_CREAT);
-   dup(0);
-   dup(0);
+    // Open stdin stdout stderr
+    if (open("terminal", O_RDWR) == -1) {
+        // terminal node doesn't exist
+        mknod("terminal", TERM_MAJ);
+        open("terminal", O_RDWR);
+    }
+    dup(0); // stdout
+    dup(0); // stderr
+    printf("init: terminal opened\n");
 
     while (1) {
         printf("init: starting sh\n\r");

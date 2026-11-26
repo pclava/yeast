@@ -4,7 +4,7 @@
 #include "keyboard.h"
 #include "lock.h"
 #include "memlayout.h"
-#include "printk.h"
+#include "file.h"
 #include "proc.h"
 #include "string.h"
 
@@ -63,8 +63,8 @@ struct {
     uint32_t e; // edit
 } cons;
 
-int term_read(uint8_t *dst, int32_t n) {
-    const uint32_t target = n;
+int term_read(char *dst, size_t n) {
+    const size_t target = n;
 
     acquire();
     while (n > 0) {
@@ -89,7 +89,7 @@ int term_read(uint8_t *dst, int32_t n) {
         }
     }
     release();
-    return (int32_t) target-n;
+    return (int) (target-n);
 }
 
 static char shift(uint8_t c) {
@@ -199,6 +199,10 @@ void term_init(void)
             term_buffer[index] = vga_entry(' ', 0);
         }
     }
+
+    // Set up console device
+    devs[TERM_MAJ].read = term_read;
+    devs[TERM_MAJ].write = term_write;
 }
 
 void term_putentryat(const char c, const uint8_t color, const size_t x, const size_t y)
@@ -317,10 +321,11 @@ void term_putchar(const char ch)
     }
 }
 
-void term_write(const char* data, const size_t size)
+int term_write(const char* data, const size_t size)
 {
     for (size_t i = 0; i < size; i++)
         term_putchar(data[i]);
+    return (int) size;
 }
 
 void term_writestring(const char *data)
