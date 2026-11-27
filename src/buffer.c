@@ -184,6 +184,7 @@ void brelse(struct bbuf *b) {
     acquire();
     b->references--; // no longer using block
     if (b->references == 0) { // if no one is waiting on this block
+        // evict the buffer
         if (b != bcache.head) {
             // move to head of linked list
 

@@ -11,7 +11,7 @@ int main(void) {
     }
     dup(0); // stdout
     dup(0); // stderr
-    printf("init: terminal opened\n");
+    // printf("init: terminal opened\n");
 
     while (1) {
         printf("init: starting sh\n\r");

@@ -74,7 +74,7 @@ void iput(struct inode *inode);
 // Delete all data from inode
 void itrunc(struct inode *inode);
 
-// Write changes to disk
+// Write changes to disk, must be called every time an inode's metadata is edited
 void iupdate(struct inode *inode);
 
 // Free inode on disk

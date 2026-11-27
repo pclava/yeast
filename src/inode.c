@@ -23,16 +23,17 @@ void inodes_init(void) {
 struct inode *ialloc(uint32_t type) {
     if (type == 0) return NULL;
 
+    // Finds an unused inode
     for (unsigned int inum = 1; inum < NINODES; inum++) {
-        unsigned int block = inum/INODES_PER_BLOCK;
         unsigned int index = inum % INODES_PER_BLOCK;
-        struct bbuf *bp = bread(sb.inodestart+block);
+        uint32_t bno = IBLOCK(inum, sb);
+        struct bbuf *bp = bread(bno);
         struct dinode *dinodes = (struct dinode *)bp->data;
         struct dinode *d = dinodes + index;
+        // Inode is unused
         if (d->type == 0) {
-            // Inode is unused
             // Clear
-            memset_aligned((uint32_t *)d, 0, sizeof(struct dinode)/sizeof(uint32_t));
+            memset(d, 0, sizeof(struct dinode));
             // Mark used
             d->type = type;
             // Write to disk
@@ -49,7 +50,7 @@ struct inode *ialloc(uint32_t type) {
 void ilock(struct inode *inode) {
     if (inode == NULL || inode->references < 1) panic("ilock: invalid inode");
 
-    // Get inode
+    // Get inode lock
     acquire_sleep(&inode->lock);
 
     // Read from disk
@@ -75,35 +76,26 @@ void iunlock(struct inode *inode) {
 }
 
 void iput(struct inode *inode) {
-
     acquire();
-
     int last_usage = (inode->references == 1) && (inode->d.nlink == 0) && (inode->valid == 0);
-
     if (last_usage) {
-        // Delete inode
-        acquire_sleep(&inode->lock);
-        release();
-
+        // Delete file underneath inode
         itrunc(inode); // delete file
         inode->valid = 0;
-
-        release_sleep(&inode->lock);
-        acquire();
     }
 
     inode->references--; // refs = 0 means slot in table is free to use
     release();
 
     if (last_usage) {
-        // Mark as free on disk
+        // Delete inode from disk
         ifree(inode->inum);
     }
 }
 
 void itrunc(struct inode *inode) {
-    // For every data block in inode, bfree();
     if (inode == NULL) panic("itrunc: bad inode");
+    // For every data block in inode, bfree();
 
     // Read direct blocks
     for (int i = 0; i < NDIRECT; i++) {

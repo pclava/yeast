@@ -14,7 +14,7 @@
  * The key functions exposed by this layer are
  * bread        reads a disk sector into a memory buffer, and acquires the lock for that buffer
  * bwrite       writes the buffer to the disk
- * brelse       release the lock on the buffer
+ * brelse       release the buffer
  * Any call to bread must be accompanied by a call to bread!
  *
  * A typical block operation looks like
