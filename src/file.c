@@ -50,7 +50,7 @@ void fileclose(fileptr fp) {
 
     release();
 
-    if (f.type == FD_INODE) {
+    if (f.type == FD_INODE || f.type == FD_DEVICE) {
         begin_op();
         iput(f.ip);
         end_op();
@@ -98,7 +98,7 @@ int filewrite(fileptr fp, void *addr, size_t size) {
 }
 
 int filestat(struct file *fp, struct stat *st) {
-    if (fp->type == FD_INODE) {
+    if (fp->type == FD_INODE || fp->type == FD_DEVICE) {
         memset(st, 0, sizeof(*st));
         ilock(fp->ip);
         st->size = fp->ip->d.size;
