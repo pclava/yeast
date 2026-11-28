@@ -20,50 +20,45 @@ void inodes_init(void) {
     }
 }
 
-struct inode *ialloc(uint32_t type) {
-    if (type == 0) return NULL;
+// Get a pointer to the dinode given a bbuf ptr
+#define DINODE(bp, inum) ( &((struct dinode *)bp->data)[(inum % INODES_PER_BLOCK)] )
 
-    // Finds an unused inode
-    for (unsigned int inum = 1; inum < NINODES; inum++) {
-        unsigned int index = inum % INODES_PER_BLOCK;
-        uint32_t bno = IBLOCK(inum, sb);
-        struct bbuf *bp = bread(bno);
-        struct dinode *dinodes = (struct dinode *)bp->data;
-        struct dinode *d = dinodes + index;
-        // Inode is unused
-        if (d->type == 0) {
-            // Clear
-            memset(d, 0, sizeof(struct dinode));
-            // Mark used
-            d->type = type;
-            // Write to disk
+// Read the block containing the inode
+#define IBREAD(inum) ( bread(IBLOCK(inum, sb)) )
+#define IBRELSE(bp) ( brelse(bp) ) // for idiomatic purposes
+
+struct inode *ialloc(uint32_t type) {
+    if (type == F_NONE) return NULL;
+
+    for (int ino = 1; ino < NINODES; ino++) {
+        struct bbuf *bp = IBREAD(ino);
+        struct dinode *dp = DINODE(bp, ino);
+        if (dp->type == F_NONE) {
+            // Disk inode is free
+            memset(dp, 0, sizeof(struct dinode));
+            dp->type = type;
             log_write(bp);
             brelse(bp);
-            return iget(inum);
+            return iget(ino); // get the in-memory data structure
         }
-        brelse(bp);
+        IBRELSE(bp);
     }
 
-    panic("ialloc: no inodes on disk");
+    panic("ialloc: no free indoes on disk");
 }
 
-void ilock(struct inode *inode) {
-    if (inode == NULL || inode->references < 1) panic("ilock: invalid inode");
+void ilock(struct inode *ip) {
+    if (ip == NULL || ip->references < 0) panic("ilock: bad inode");
 
-    // Get inode lock
-    acquire_sleep(&inode->lock);
+    acquire_sleep(&ip->lock);
 
-    // Read from disk
-    if (inode->valid == 0) {
-        // read block
-        uint32_t bno = IBLOCK(inode->inum, sb);
-        struct bbuf *bp = bread(bno);
-        struct dinode *dinodes = (struct dinode *)bp->data;
-        struct dinode *dp = &dinodes[inode->inum % INODES_PER_BLOCK];
-        // copy dp into inode.d
-        memcpy(&inode->d, dp, sizeof(struct dinode));
-        brelse(bp);
-        inode->valid = 1;
+    // read from disk if needed
+    if (ip->valid == 0) {
+        struct bbuf *bp = IBREAD(ip->inum);
+        struct dinode *dp = DINODE(bp, ip->inum);
+        memcpy(&ip->d, dp, sizeof(struct dinode));
+        IBRELSE(bp);
+        ip->valid = 1;
     }
 }
 
@@ -75,21 +70,52 @@ void iunlock(struct inode *inode) {
     release_sleep(&inode->lock);
 }
 
-void iput(struct inode *inode) {
+// Gets the inode for this number, allocating one if needed
+// Does not write useful information. ilock() must be called after
+struct inode *iget(uint32_t inum) {
     acquire();
-    int last_usage = (inode->references == 1) && (inode->d.nlink == 0) && (inode->valid == 0);
-    if (last_usage) {
-        // Delete file underneath inode
-        itrunc(inode); // delete file
-        inode->valid = 0;
+
+    // Look for the inode in the table
+    struct inode *free = NULL;
+    for (struct inode *ip = itable; ip < &itable[NINODE]; ip++) {
+        if (ip->references > 0 && ip->inum == inum) {
+            ip->references++;
+            release();
+            return ip;
+        }
+        if (ip->references == 0) free = ip;
     }
 
-    inode->references--; // refs = 0 means slot in table is free to use
+    // Allocate
+    if (free) {
+        // assign inode
+        free->inum = inum;
+        free->references = 1;
+        free->valid = 0; // tell caller to read from disk
+        release();
+        return free;
+    }
+
+    panic("iget: no free inodes in memory");
+}
+
+void iput(struct inode *ip) {
+    acquire();
+    int last_reference = (ip->references == 1) && (ip->d.nlink == 0) && (ip->valid);
+    uint32_t inum = ip->inum;
+    // delete inode's data
+    if (last_reference) {
+        itrunc(ip);
+        ip->valid = 0;
+    }
+
+    // clear from table
+    ip->references--;
     release();
 
-    if (last_usage) {
-        // Delete inode from disk
-        ifree(inode->inum);
+    // outside of a lock, delete the inode (we do this outside to reduce the time we spent in the lock)
+    if (last_reference) {
+        ifree(inum);
     }
 }
 
@@ -128,23 +154,20 @@ void itrunc(struct inode *inode) {
 void iupdate(struct inode *inode) {
     if (inode == NULL) panic("iupdate: bad inode");
 
-    uint32_t bno = sb.inodestart + inode->inum / INODES_PER_BLOCK;
-    struct bbuf *bp = bread(bno);
-
-    struct dinode *dinode = (struct dinode *)bp->data + inode->inum % INODES_PER_BLOCK;
-    memcpy(dinode, &inode->d, sizeof(struct dinode));
+    struct bbuf *bp = IBREAD(inode->inum);
+    struct dinode *dp = DINODE(bp, inode->inum);
+    memcpy(dp, &inode->d, sizeof(struct dinode));
     log_write(bp);
 
-    brelse(bp);
+    IBRELSE(bp);
 }
 
 void ifree(uint32_t ino) {
-    uint32_t bno = sb.inodestart + ino / INODES_PER_BLOCK;
-    struct bbuf *bp = bread(bno);
-    struct dinode *dinode = (struct dinode *)bp->data + ino % INODES_PER_BLOCK;
-    dinode->type = 0;
+    struct bbuf *bp = IBREAD(ino);
+    struct dinode *dp = DINODE(bp, ino);
+    dp->type = 0;
     log_write(bp);
-    brelse(bp);
+    IBRELSE(bp);
 }
 
 struct inode *idup(struct inode *ip) {
@@ -229,36 +252,6 @@ uint32_t writei(struct inode *ip, void *addr, size_t offset, size_t n) {
     iupdate(ip);
 
     return count;
-}
-
-// Gets the inode for this number, allocating one if needed
-// Does not write useful information. ilock() must be called after
-struct inode *iget(uint32_t inum) {
-    struct inode *empty = NULL;
-
-    acquire();
-
-    // Look through table
-    for (struct inode *i = itable; i < &itable[NINODE]; i++) {
-        if (i->references > 0 && i->inum == inum) {
-            i->references++;
-            release();
-            return i;
-        }
-        if (i->references == 0 && empty == NULL) {
-            empty = i;
-        }
-    }
-
-    if (empty != NULL) {
-        empty->inum = inum;
-        empty->references = 1;
-        empty->valid = 0; // mark invalid so we know to read from disk!!!
-        release();
-        return empty;
-    }
-
-    panic("iget: no inodes in table");
 }
 
 // Returns the block number of the given data block in the file

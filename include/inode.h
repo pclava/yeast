@@ -56,7 +56,7 @@ struct inode *ialloc(uint32_t type);
 
 // Locks the inode for use. Reads it from disk if necesary
 // Must be paired with iunlock
-void ilock(struct inode *inode);
+void ilock(struct inode *ip);
 
 // Unlock inode
 // Must be paired with ilock

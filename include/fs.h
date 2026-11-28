@@ -41,6 +41,7 @@ void bfree(uint32_t bno);       // Mark a sector as free in the bitmap
 /* === INODES === */
 
 enum file_type {
+    F_NONE = 0,
     F_DIRECTORY = 1,
     F_FILE = 2,
     F_DEVICE = 3,
@@ -58,7 +59,7 @@ struct dinode {
 // In-memory inode structure
 struct inode {
     uint32_t inum;
-    int32_t references;
+    int32_t references; // how many threads are using this inode?
     int32_t valid; // has the inode been read from disk?
     struct sleeplock lock;
     struct dinode d;
@@ -66,7 +67,7 @@ struct inode {
 
 #define INODES_PER_BLOCK (BLOCKSIZE / sizeof(struct dinode))
 #define BITS_PER_BLOCK (BLOCKSIZE * 8)
-#define IBLOCK(i, superblock) (superblock.inodestart + ((i) / INODES_PER_BLOCK))
+#define IBLOCK(i, superblock) (superblock.inodestart + ((i) / INODES_PER_BLOCK)) // get the block containing the inode
 #define NINODES 200 // inodes on disk
 #define NINODE 50 // inodes in memory
 #define ROOTINUM 1
