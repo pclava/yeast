@@ -159,11 +159,12 @@ void write_to_inode(uint i, void *data, size_t bytes) {
             // Allocate indirect block
             if (xint(dinode.data[NDIRECT]) == 0) {
                 dinode.data[NDIRECT] = xint(freeblock++);
+                memset(buf, 0, BLOCKSIZE);
+                wsect(dinode.data[NDIRECT], buf);
             }
 
             rsect(xint(dinode.data[NDIRECT]), buf);
 
-            memset(buf, 0, BLOCKSIZE);
             uint *indirect = (uint *)buf;
             uint indirect_index = file_block - NDIRECT;
 
@@ -321,6 +322,7 @@ uint add_file(char *path, uint dirno) {
     }
 
     fclose(f);
+
     return inode;
 }
 

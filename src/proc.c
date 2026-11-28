@@ -186,6 +186,40 @@ int kexec(char *path, int argc, char **argv) {
     struct inode *ip = NULL;
     struct mof_header hdr;
 
+    // === Stack Arguments (part 1) ===
+    // Place stack arguments into temporary buffer before we wipe the page table
+    char *buf = kalloc() + UMEM_ALIASDIFF;
+    char *stack_buf = buf + PAGE_SIZE;
+    uint32_t n_fixed = 4+4*argc;
+    uint32_t n_strings = 0;
+    for (int i = 0; i < argc; i++) {
+        n_strings += 1 + strlen(argv[i]);
+    }
+    uint32_t size = n_fixed + n_strings;
+    while (size % 4 != 0) size++;
+
+    // Pointers
+    void *start = (void*)(stack_buf - size);    // where stack pointer will be
+    void *usr_start = (void *)(STACKTOP - size);
+    uint32_t *fixed = (uint32_t *)start;
+
+    char *strings_start = start + n_fixed;  // where the strings start (going up)
+    char *strings_start_usr = usr_start + n_fixed;
+
+    // Write argc
+    fixed[0] = argc;
+    // Copy strings
+    for (int i = 0; i < argc; i++) {
+        // Copy into strings_start
+        size_t n = 1 + strlen(argv[i]);
+        memcpy(strings_start, argv[i], n);
+        // Write pointer
+        fixed[i+1] = (uint32_t) strings_start_usr;
+        // Increment
+        strings_start += n;
+        strings_start_usr += n;
+    }
+
     // === Read file into memory ===
     begin_op();
     if ((ip = namelookup(path)) == NULL) {
@@ -194,6 +228,10 @@ int kexec(char *path, int argc, char **argv) {
         return -1;
     }
     ilock(ip);
+
+    // Clear page table
+    free_pagetable(p->PID);
+    p->pages = 0;
 
     // Read header
     if (readi(ip, &hdr, 0, sizeof(struct mof_header)) != sizeof(struct mof_header)) {
@@ -222,41 +260,19 @@ int kexec(char *path, int argc, char **argv) {
     iput(ip);
     end_op();
 
-    // === Place args in stack ===
-
-    // Bytes
-    uint32_t n_fixed = 4+4*argc;
-    uint32_t n_strings = 0;
-    for (int i = 0; i < argc; i++) {
-        n_strings += 1 + strlen(argv[i]);
-    }
-    uint32_t size = n_fixed + n_strings;
-    while (size % 4 != 0) size++;
-
-    // Pointers
-    void *start = (void*)(STACKTOP - size); // where stack pointer will be
-    char *strings_start = start + n_fixed;  // where the strings start (going up)
-    uint32_t *fixed = (uint32_t *)start;
-
-    // Write argc
-    fixed[0] = argc;
-    // Copy strings
-    for (int i = 0; i < argc; i++) {
-        // Copy into strings_start
-        size_t n = 1 + strlen(argv[i]);
-        memcpy(strings_start, argv[i], n);
-        // Write pointer
-        fixed[i+1] = (uint32_t) strings_start;
-        // Increment
-        strings_start += n;
-    }
+    // === Stack Arguments (part 2) ===
+    // Copy from buffer to new user stack
+    memcpy(usr_start, start, size);
 
     // === Prepare to execute ===
     p->trapframe->pc = hdr.entry;
-    p->trapframe->sp = (uint32_t) start;
+    p->trapframe->sp = (uint32_t) usr_start;
+    kfree(buf - UMEM_ALIASDIFF);
     return 0;
 
     fail:
+    kfree(buf - UMEM_ALIASDIFF);
+    end_op();
     iunlock(ip);
     iput(ip);
     return -1;

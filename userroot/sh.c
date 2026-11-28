@@ -7,11 +7,15 @@
 #define NARGS 15
 struct cmd {
     int argc; // does not include first argument (exe name)
+    char *out; // stdout redirection
+    char *in; // stdin redirection
     char *command[1+NARGS+1]; // (path) (args) (NULL)
 };
 
-unsigned int cmdexec(struct cmd cmd);
-unsigned int nativeexec(struct cmd cmd);
+int G = 1;
+
+unsigned int cmdexec(struct cmd *cmd);
+unsigned int nativeexec(struct cmd *cmd);
 
 void intro() {
     printf("\n\r" ANSI_BG_YELLOW ANSI_COLOR_BLACK);
@@ -61,7 +65,7 @@ int main(void) {
         char *args_start = strchr(buf, ' ');
         if (args_start == NULL) {
             command.command[0] = buf;
-            cmdexec(command);
+            cmdexec(&command);
             continue;
         }
 
@@ -76,12 +80,56 @@ int main(void) {
         // 2. Parse args
         char *cur = args_start;
         int run = 1;
+        int redirect_in = 0;
+        int redirect_out = 0;
         while (cur != NULL) {
-            while (*cur == ' ') *cur++ = '\0';
-            if (*cur == '\0') break;
+            char *next = strchr(cur, ' ');
+            if (next != NULL) while (*next == ' ') *next++ = '\0';
+            // ===
 
+            // Input redirection
+            if (strcmp(cur, "<") == 0) {
+                if (next == NULL) {
+                    printf("error: expected file after <\n");
+                    run = 0;
+                    break;
+                }
+                cur = next;
+                redirect_in = 1;
+                continue;
+            }
+
+            // Read file for input redirection
+            if (redirect_in) {
+                command.in = cur;
+                redirect_in = 0;
+                cur = next;
+                continue;
+            }
+
+            // Output redirection
+            if (strcmp(cur, ">") == 0) {
+                if (next == NULL) {
+                    printf("error: expected file after >\n");
+                    run = 0;
+                    break;
+                }
+                cur = next;
+                redirect_out = 1;
+                continue;
+            }
+
+            // Read file for output redirecton
+            if (redirect_out) {
+                command.out = cur;
+                redirect_out = 0;
+                cur = next;
+                // continue;
+            }
+
+            // Normal argument
             if (command.argc > NARGS) {
-                printf("too many arguments, aborting\n\r");
+                printf("too many arguments, aborting\n");
                 run = 0;
                 break;
             }
@@ -91,55 +139,62 @@ int main(void) {
             command.argc++;
 
             // Get next
-            cur = strchr(cur, ' ');
+            cur = next;
         }
 
-        // 3. Execute
-        if (run) cmdexec(command);
+        // // 3. Execute
+        // if (command.in != NULL) {
+        //     printf("< %s\n\r", command.in);
+        // }
+        // if (command.out != NULL) {
+        //     printf("> %s\n\r", command.out);
+        // }
+
+        if (run) cmdexec(&command);
     }
 }
 
 // Commands not associated with a program, executed here
-unsigned int nativeexec(struct cmd cmd) {
-    char *cmdname = cmd.command[0];
+unsigned int nativeexec(struct cmd *cmd) {
+    char *cmdname = cmd->command[0];
     if (strcmp(cmdname, "clear") == 0) {
-        if (cmd.argc != 0) goto unrecognized;
+        if (cmd->argc != 0) goto unrecognized;
         termctl(TTY_CLEAR);
         return 0;
     }
 
     if (strcmp(cmdname, "exit") == 0) {
-        if (cmd.argc != 0) goto unrecognized;
+        if (cmd->argc != 0) goto unrecognized;
         exit(0);
         return 0;
     }
 
     if (strcmp(cmdname, "yeast") == 0) {
-        if (cmd.argc != 0) goto unrecognized;
+        if (cmd->argc != 0) goto unrecognized;
         printf(ANSI_COLOR_YELLOW KERNEL_NAME ANSI_COLOR_RESET " kernel " KERNEL_VERS " by paul clavaud\n\r");
         return 0;
     }
 
     if (strcmp(cmdname, "panic") == 0) {
-        if (cmd.argc != 0) goto unrecognized;
+        if (cmd->argc != 0) goto unrecognized;
         *(int *)1 = 1;
         return 0;
     }
 
     if (strcmp(cmdname, "colors") == 0) {
-        if (cmd.argc != 0) goto unrecognized;
+        if (cmd->argc != 0) goto unrecognized;
         colors();
         return 0;
     }
 
     if (strcmp(cmdname, "cd") == 0) {
-        if (cmd.argc != 1) goto unrecognized;
-        if (chdir(cmd.command[1]) == -1) return 1;
+        if (cmd->argc != 1) goto unrecognized;
+        if (chdir(cmd->command[1]) == -1) return 1;
         return 0;
     }
 
     if (strcmp(cmdname, "cwd") == 0) {
-        if (cmd.argc != 0) goto unrecognized;
+        if (cmd->argc != 0) goto unrecognized;
         char buf[128];
         getcwd(buf);
         printf("%s\n\r", buf);
@@ -152,8 +207,8 @@ unsigned int nativeexec(struct cmd cmd) {
     return 1;
 }
 
-unsigned int cmdexec(struct cmd cmd) {
-    char *cmdname = cmd.command[0];
+unsigned int cmdexec(struct cmd *cmd) {
+    char *cmdname = cmd->command[0];
     unsigned int x = nativeexec(cmd);
     if (x != -1) return x;
 
@@ -162,7 +217,7 @@ unsigned int cmdexec(struct cmd cmd) {
 
     int pid = fork();
     if (pid == 0) {
-        exec(path, cmd.command);
+        exec(path, cmd->command);
         exit(1);
         return 0;
     }
